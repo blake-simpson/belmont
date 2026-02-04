@@ -45,6 +45,7 @@ fi
 SCRIPTS=(
     "ralph-plan"
     "ralph-tech-plan"
+    "ralph-prompt"
     "ralph-once"
     "ralph-afk"
     "ralph-init"

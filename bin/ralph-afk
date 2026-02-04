@@ -215,21 +215,39 @@ for ((i=1; i<=$ITERATIONS; i++)); do
     echo "Working on: $CURRENT_TASK"
 
     # Run Claude in sandbox - it will update files directly
-    docker sandbox run \
+    result=$(docker sandbox run \
         "$SANDBOX_NAME" -- --permission-mode acceptEdits -p "$FILES_TO_READ
-$RALPH_TASK_PROMPT"
+$RALPH_TASK_PROMPT
+$RALPH_AFK_LOOP_PROMPT")
+
+    echo "$result"
 
     # Remove the active task after Claude completes
     remove_active_task
 
-    # Check if blocked (look for BLOCKED status in progress file)
-    if grep -q "^## Status: 🔴 BLOCKED" "$PROGRESS_FILE" 2>/dev/null; then
+    # Check for BLOCKED signal
+    if [[ "$result" == *"<promise>BLOCKED</promise>"* ]]; then
+        # Extract blocked details
+        blocked_task_id=$(echo "$result" | sed -n '/<blocked-details>/,/<\/blocked-details>/p' | sed -n 's/.*<task-id>\(.*\)<\/task-id>.*/\1/p')
+        blocked_reason=$(echo "$result" | sed -n '/<blocked-details>/,/<\/blocked-details>/p' | sed -n 's/.*<reason-category>\(.*\)<\/reason-category>.*/\1/p')
+
         echo ""
-        echo "🚫 Task blocked. Check .ralph/PROGRESS.md for details."
+        echo "🚫 BLOCKED: Task $blocked_task_id"
+        echo "Reason: $blocked_reason"
+
         if [ "$LOUD" = true ]; then
-            say --voice Zarvox "Task blocked" 2>/dev/null || true
+            say --voice Zarvox "Blocked on task $blocked_task_id" 2>/dev/null || true
         fi
         exit 2
+    fi
+
+    # Check for COMPLETE signal (all tasks done)
+    if [[ "$result" == *"<promise>COMPLETE</promise>"* ]]; then
+        echo "PRD complete after $i iterations."
+        if [ "$LOUD" = true ]; then
+            say --voice Zarvox "PRD complete" 2>/dev/null || true
+        fi
+        exit 0
     fi
 
     echo ""

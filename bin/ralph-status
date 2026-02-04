@@ -101,9 +101,9 @@ except FileNotFoundError:
     pass
 
 # Find tasks by section headers - support both formats:
-# Format 1: ### P0-1: Task Name
+# Format 1: ### P0-1: Task Name (also P0-1-FIX, P0-1-HOTFIX, etc.)
 # Format 2: ### Task 1: Task Name
-task_headers = re.findall(r'^###\s+(P\d+-\d+):\s*(.+?)$', content, re.MULTILINE)
+task_headers = re.findall(r'^###\s+(P\d+-\d+(?:-[A-Z0-9]+)?):\s*(.+?)$', content, re.MULTILINE)
 task_headers_alt = re.findall(r'^###\s+(Task\s+\d+):\s*(.+?)$', content, re.MULTILINE)
 
 # Build task info

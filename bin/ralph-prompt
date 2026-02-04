@@ -3,7 +3,8 @@
 # ralph-prompt: Shared prompt template for ralph-once and ralph-afk
 # This file is sourced by other scripts, not run directly.
 
-RALPH_TASK_PROMPT='1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority).
+RALPH_TASK_PROMPT='If any task is blocked, stop and report to the user you cannot continue. No tasks can be worked on if any are blocked.
+1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority).
 2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
 3. Launch a sub-agent to:
     - Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
@@ -15,7 +16,7 @@ RALPH_TASK_PROMPT='1. Find the highest-priority incomplete task from the Technic
 4. Commit your changes without co-authoring.
 5. Update .ralph/PRD.md and .ralph/PROGRESS.md marking the completed tasks with ✅ (e.g., '\''### P0-1: Task Name ✅'\'').
 
-ONLY WORK ON A SINGLE TASK!
+ONLY WORK ON A SINGLE TASK!!
 
 === ESCAPE HATCH ===
 PRINCIPLE: Never guess when the cost of being wrong is high. If you lack information critical to the task, stop and block rather than guess.
@@ -23,3 +24,23 @@ HARD RULE: If Figma design URLs are specified, the design MUST load successfully
 FOR OTHER SITUATIONS: Ask yourself - Am I guessing at something critical? Would significant work be wasted if I am wrong?
 When you decide to block: Mark the task header as '\''### P0-X: Task Name 🚫 BLOCKED'\'' in the PRD.
 Update .ralph/PROGRESS.md status to '\''## Status: 🔴 BLOCKED: [reason]'\'' and add blocker details to Blockers section.'
+
+# AFK loop-specific prompt (used by ralph-afk for multi-iteration runs)
+RALPH_AFK_LOOP_PROMPT='
+=== LOOP HANDLING ===
+You are running in an automated loop. After completing your task:
+
+If you completed the task successfully AND all tasks in the PRD are now complete (all have ✅), output:
+<promise>COMPLETE</promise>
+
+If you are blocked and cannot proceed, output:
+<promise>BLOCKED</promise>
+<blocked-details>
+  <task-id>[e.g., P0-5]</task-id>
+  <reason-category>[brief category, e.g., figma_unavailable, missing_context]</reason-category>
+  <explanation>[What went wrong and why you cannot proceed]</explanation>
+  <resolution-hint>[How the user can resolve this]</resolution-hint>
+</blocked-details>
+
+These signals control the loop - COMPLETE exits successfully, BLOCKED stops for human intervention.
+=== END LOOP HANDLING ==='
