@@ -77,25 +77,29 @@ for task_id, task_name in task_headers:
     priority = task_id.split('-')[0]
     task_section = re.search(rf'###\s+{re.escape(task_id)}:.*?(?=\n###|\n---|\Z)', content, re.DOTALL)
     is_complete = False
+    is_blocked = False
     if task_section:
         section_text = task_section.group(0)
         is_complete = '✅' in section_text[:100] or '[DONE]' in section_text[:100] or '~~' in task_name
+        is_blocked = '🚫' in section_text[:100] or 'BLOCKED' in section_text[:100]
     if priority in priorities:
-        priorities[priority].append((task_id, task_name.strip(), is_complete))
-    all_tasks.append((task_id, task_name.strip(), is_complete))
+        priorities[priority].append((task_id, task_name.strip(), is_complete, is_blocked))
+    all_tasks.append((task_id, task_name.strip(), is_complete, is_blocked))
 
 # Process Task N format
 for task_id, task_name in task_headers_alt:
     # Check if task is marked complete (has ✅ or [DONE] in header line)
     is_complete = '✅' in task_name or '[DONE]' in task_name
+    is_blocked = '🚫' in task_name or 'BLOCKED' in task_name
     # Clean up the task name
-    clean_name = task_name.replace('✅', '').replace('[DONE]', '').strip()
-    all_tasks.append((task_id, clean_name, is_complete))
+    clean_name = task_name.replace('✅', '').replace('[DONE]', '').replace('🚫', '').replace('BLOCKED', '').strip()
+    all_tasks.append((task_id, clean_name, is_complete, is_blocked))
 
 # Calculate totals from all_tasks (works for both formats)
 total_tasks = len(all_tasks)
-completed_tasks = sum(1 for _, _, done in all_tasks if done)
-pending_tasks = total_tasks - completed_tasks
+completed_tasks = sum(1 for _, _, done, _ in all_tasks if done)
+blocked_tasks = sum(1 for _, _, _, blocked in all_tasks if blocked)
+pending_tasks = total_tasks - completed_tasks - blocked_tasks
 in_progress_count = len(active_tasks)
 
 # Determine status intelligently
@@ -108,7 +112,12 @@ else:
     # Find LAST status match in progress file (not first)
     status_matches = re.findall(r'^##\s+Status:\s*(.+)$', progress_content, re.MULTILINE)
     if status_matches:
-        status = status_matches[-1].strip()
+        last_status = status_matches[-1].strip()
+        # Check if blocked
+        if 'BLOCKED' in last_status:
+            status = last_status  # Keep the full blocked status with reason
+        else:
+            status = last_status
     else:
         status = "🔴 Not Started"
 
@@ -122,6 +131,8 @@ if total_tasks > 0:
         parts.append(f"{completed_tasks} done")
     if in_progress_count > 0:
         parts.append(f"{in_progress_count} in progress")
+    if blocked_tasks > 0:
+        parts.append(f"{blocked_tasks} blocked")
     if pending_tasks - in_progress_count > 0:
         parts.append(f"{pending_tasks - in_progress_count} pending")
 
@@ -129,7 +140,7 @@ if total_tasks > 0:
     print("")
 
     # Show task list with status icons
-    for task_id, task_name, is_complete in all_tasks:
+    for task_id, task_name, is_complete, is_blocked in all_tasks:
         # Check if this task is currently in progress
         task_in_progress = any(
             task_id in t.get('description', '') or task_name[:20] in t.get('description', '')
@@ -138,6 +149,8 @@ if total_tasks > 0:
 
         if is_complete:
             icon = "✅"
+        elif is_blocked:
+            icon = "🚫"
         elif task_in_progress:
             icon = "🔄"
         else:
@@ -145,8 +158,10 @@ if total_tasks > 0:
 
         # Truncate long names
         display_name = task_name[:55] + "..." if len(task_name) > 55 else task_name
-        # Remove ✅ from display name if already in icon
+        # Remove status markers from display name if already in icon
         display_name = display_name.replace(" ✅", "").replace("✅ ", "").replace("✅", "")
+        display_name = display_name.replace(" 🚫", "").replace("🚫 ", "").replace("🚫", "")
+        display_name = display_name.replace(" BLOCKED", "").replace("BLOCKED ", "").replace("BLOCKED", "")
         print(f"  {icon} {task_id}: {display_name}")
     print("")
 
@@ -161,6 +176,23 @@ if active_tasks:
         print(f"  • {desc}...")
         print(f"    Started: {started} | PID: {pid} | Sandbox: {sandbox}")
     print("")
+
+# Show active blockers from PROGRESS.md
+if progress_content and blocked_tasks > 0:
+    blockers_section = re.search(r'##\s+Blockers.*?\n(.*?)(?=\n##|\Z)', progress_content, re.DOTALL)
+    if blockers_section:
+        blockers_text = blockers_section.group(1).strip()
+        if blockers_text:
+            print(f"Active Blockers:")
+            # Parse blocker entries (bullet points)
+            blocker_lines = [
+                line.strip()
+                for line in blockers_text.split('\n')
+                if line.strip() and (line.strip().startswith('-') or line.strip().startswith('•'))
+            ]
+            for line in blocker_lines[:5]:  # Show up to 5 blockers
+                print(f"  {line}")
+            print("")
 
 # Show milestones from progress file
 try:
@@ -184,7 +216,7 @@ print("---")
 # Show last completed task
 completed_list = [
     (task_id, task_name)
-    for task_id, task_name, done in all_tasks
+    for task_id, task_name, done, _ in all_tasks
     if done
 ]
 if completed_list:

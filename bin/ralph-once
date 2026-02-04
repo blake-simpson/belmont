@@ -66,13 +66,18 @@ task_headers = re.findall(r'^###\s+(P\d+-\d+):\s*(.+?)$', content, re.MULTILINE)
 
 # Sort by priority (P0 first)
 for task_id, task_name in sorted(task_headers, key=lambda x: x[0]):
-    # Check if task is marked complete (has ✅ or [DONE])
+    # Check if task is marked complete (has ✅ or [DONE]) or blocked (has 🚫 or BLOCKED)
     task_section = re.search(rf'###\s+{re.escape(task_id)}:.*?(?=\n###|\n---|\Z)', content, re.DOTALL)
     if task_section:
         section_text = task_section.group(0)
-        if '✅' not in section_text[:100] and '[DONE]' not in section_text[:100] and '~~' not in task_name:
-            print(f'{task_id}: {task_name.strip()[:50]}')
-            break
+        # Skip completed tasks
+        if '✅' in section_text[:100] or '[DONE]' in section_text[:100] or '~~' in task_name:
+            continue
+        # Skip blocked tasks
+        if '🚫' in section_text[:100] or 'BLOCKED' in section_text[:100]:
+            continue
+        print(f'{task_id}: {task_name.strip()[:50]}')
+        break
 "
 }
 
@@ -98,14 +103,21 @@ add_active_task "$CURRENT_TASK"
 
 claude --permission-mode acceptEdits "$PRD_FILE $PROGRESS_FILE \
 1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority). \
-2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. \
+2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED. \
 3. Spawn a sub-agent to read the PRD, load skills, load all Figma, and return a dedicated implementation plan including pixel perfect design. \
 4. Spawn a sub-agent to implement the task following its Implementation Details and Verification steps. \
 5. Run your type checks and validate (npm run lint:fix, tsc, npm run test, npm run build, etc.). Fix any problems now. \
 6. Commit your changes without co-authoring. \
 7. Update PRD.md marking the completed task header with ✅ (e.g., '### P0-1: Task Name ✅'). \
 
-ONLY WORK ON A SINGLE TASK!"
+ONLY WORK ON A SINGLE TASK! \
+
+=== ESCAPE HATCH === \
+PRINCIPLE: Never guess when the cost of being wrong is high. If you lack information critical to the task, stop and block rather than guess. \
+HARD RULE: If Figma design URLs are specified, the design MUST load successfully. Do not proceed without loading the Figma design. \
+FOR OTHER SITUATIONS: Ask yourself - Am I guessing at something critical? Would significant work be wasted if I'm wrong? \
+When you decide to block: Mark the task header as '### P0-X: Task Name 🚫 BLOCKED' in the PRD. \
+Update PROGRESS.md status to '## Status: 🔴 BLOCKED: [reason]' and add blocker details to Blockers section."
 
 # Remove active task after completion
 remove_active_task
