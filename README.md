@@ -11,11 +11,9 @@ Based on the original work by Matt Pocock: [https://www.aihero.dev/getting-start
 cd /Users/blake/code/sandbox/ralph
 ./bin/ralph-setup
 
-# Configure Figma MCP (optional, once per sandbox)
-ralph-configure-mcp
-
 # Start a new project
 cd ~/your-project
+ralph-init               # Create Docker sandbox for this project
 ralph-clear              # Reset PRD and progress
 ralph-plan               # Create PRD interactively with Claude
 ralph-once               # Test one task locally
@@ -47,12 +45,25 @@ Add this line to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) for persiste
 
 ## Commands
 
+### `ralph-init`
+Initialize a Docker sandbox for the current project. Run once per project before using `ralph-afk`.
+
+- Creates a sandbox named `claude-<project-folder-name>`
+- Prompts you to log in to Claude inside the sandbox
+- Must be run from within your project directory
+
+```bash
+cd ~/your-project
+ralph-init
+```
+
 ### `ralph-plan`
 Interactive planning session with Claude. Runs **locally** (not in sandbox) for interactive PRD creation.
 
 - Uses `--permission-mode plan` for safe exploration
-- Guides you through defining tasks
-- Outputs structured JSON tasks to PRD.md
+- Guides you through defining tasks with iterative Q&A
+- Creates structured markdown PRD with prioritized tasks (P0, P1, P2, P3)
+- Includes Figma URLs, acceptance criteria, and verification steps
 
 ```bash
 cd ~/your-project
@@ -63,28 +74,36 @@ ralph-plan
 Run a single task implementation locally. Good for testing before going AFK.
 
 - Uses `--permission-mode acceptEdits`
-- Implements one task from PRD.md
-- Updates progress.txt and marks task complete
+- Implements one task from PRD.md (highest priority first)
+- Updates PRD.md marking task complete with ✅
+- Updates PROGRESS.md with session history
 
 ```bash
 ralph-once
 ```
 
-### `ralph-afk <iterations>`
+### `ralph-afk <iterations> [--loud]`
 Run multiple iterations in Docker sandbox. The main AFK mode.
 
-- Runs in Docker sandbox for isolation
-- Mounts ralph directory for PRD/progress access
-- Works in your current project directory
-- Stops early if all tasks complete
+- Runs in project-specific Docker sandbox (`claude-<project-name>`)
+- Each iteration implements one task from PRD.md
+- Stops early if all tasks complete or a task is blocked
+- Tracks active tasks in `~/.local/ralph-active.json`
 
 ```bash
-ralph-afk 10    # Run up to 10 iterations
-ralph-afk 50    # Run up to 50 iterations
+ralph-afk 10           # Run up to 10 iterations
+ralph-afk 50 --loud    # Run with voice announcements
 ```
 
+**Options:**
+- `--loud` - Enable voice announcements (macOS `say` command)
+
+**Exit codes:**
+- `0` - All tasks completed successfully
+- `2` - Blocked on a task (Figma unavailable, missing context, etc.)
+
 ### `ralph-clear`
-Reset PRD.md and progress.txt to start fresh.
+Reset PRD.md and PROGRESS.md to start fresh with template structure.
 
 ```bash
 ralph-clear
@@ -102,18 +121,39 @@ Example output:
 Ralph Status
 ============
 
-Total Tasks: 12
-  Completed: 7
-  Pending:   5
-  Progress:  7/12 (58%)
+Feature: Chat Application Redesign
 
-By Category:
-  functional: 5/8
-  styling: 2/4
+Status: 🟡 In Progress
 
-Pending Tasks:
-  [functional] Implement user logout functionality...
-  [styling] Add responsive breakpoints for mobile...
+Tasks: 3 done, 1 in progress, 1 blocked, 2 pending (of 7)
+
+  ✅ P0-1: Set up project structure
+  ✅ P0-2: Implement authentication flow
+  ✅ P1-1: Create chat message component
+  🔄 P1-2: Add real-time message updates
+  🚫 P1-3: Implement file attachments
+  ⬜ P2-1: Add emoji picker
+  ⬜ P2-2: Dark mode support
+
+In Progress: 1 task(s)
+  • P1-2: Add real-time message updates...
+    Started: 2026-02-04T14:32:00 | PID: 12345 | Sandbox: claude-my-app
+
+Active Blockers:
+  - P1-3: Figma design not accessible
+
+Milestones:
+  ✅ M1: Core functionality
+  ⬜ M2: Enhanced features
+
+Recent Activity:
+---
+Last completed: P1-1 - Create chat message component
+Working on: P1-2: Add real-time message updates
+
+Recent decisions:
+  - Chose WebSocket over polling for real-time
+  - Using React Query for state management
 ```
 
 ### `ralph-setup`
@@ -148,15 +188,20 @@ The Figma token is:
 ### Starting a New Project Cycle
 
 1. **Navigate** to your project directory
-2. **Clear** previous state: `ralph-clear`
-3. **Plan** interactively: `ralph-plan`
-4. **Test** locally: `ralph-once`
-5. **Go AFK**: `ralph-afk 20`
+2. **Initialize** sandbox (once per project): `ralph-init`
+3. **Clear** previous state: `ralph-clear`
+4. **Plan** interactively: `ralph-plan`
+5. **Test** locally: `ralph-once`
+6. **Go AFK**: `ralph-afk 20`
 
 ### Typical Session
 
 ```bash
 cd ~/projects/my-app
+
+# First time only: create sandbox and login
+ralph-init
+# When Claude starts, run /login, complete auth, then /exit
 
 # Start fresh
 ralph-clear
@@ -184,9 +229,10 @@ ralph-afk 15
 While AFK mode is running (or after):
 
 ```bash
-ralph-status           # Quick summary
-cat ~/.local/progress.txt    # Detailed log
-git log --oneline -10  # See commits
+ralph-status              # Quick summary with task states
+cat ~/.local/PRD.md       # Full PRD with task details
+cat ~/.local/PROGRESS.md  # Session history and decisions
+git log --oneline -10     # See commits
 ```
 
 ## Directory Structure
@@ -194,6 +240,7 @@ git log --oneline -10  # See commits
 ```
 /Users/blake/code/sandbox/ralph/
 ├── bin/
+│   ├── ralph-init
 │   ├── ralph-plan
 │   ├── ralph-once
 │   ├── ralph-afk
@@ -204,8 +251,9 @@ git log --oneline -10  # See commits
 └── README.md
 
 ~/.local/
-├── PRD.md              # Task definitions (JSON)
-├── progress.txt        # Implementation log
+├── PRD.md              # Task definitions (markdown)
+├── PROGRESS.md         # Session history and status
+├── ralph-active.json   # Currently running tasks
 └── bin/
     ├── ralph-plan -> /Users/blake/code/sandbox/ralph/bin/ralph-plan
     ├── ralph-once -> ...
@@ -217,37 +265,133 @@ git log --oneline -10  # See commits
 
 ## PRD Format
 
-The PRD.md file contains a JSON array of tasks:
+The PRD.md file uses structured markdown with prioritized tasks:
 
-```json
-[
-  {
-    "category": "functional",
-    "description": "New chat button creates a fresh conversation",
-    "steps": [
-      "Click the 'New Chat' button",
-      "Verify a new conversation is created",
-      "Check that chat area shows welcome state"
-    ],
-    "passes": false
-  },
-  {
-    "category": "styling",
-    "description": "Apply brand colors to header",
-    "steps": [
-      "Update header background to #1a1a2e",
-      "Run npm run lint:fix",
-      "Verify no visual regressions"
-    ],
-    "passes": true
-  }
-]
+```markdown
+# PRD: Chat Application Redesign
+
+## Overview
+Redesign the chat interface with real-time messaging support.
+
+## Problem Statement
+Current chat lacks real-time updates and modern UX.
+
+## Success Criteria (Definition of Done)
+- [ ] All messages sync in real-time
+- [ ] UI matches Figma designs
+- [ ] All tests pass
+
+## Acceptance Criteria (BDD)
+
+### Scenario: Send Message
+Given I am logged in
+And I am in a chat room
+When I type a message and press Enter
+Then the message appears immediately
+And other users see it within 1 second
+
+## Technical Approach
+WebSocket-based real-time sync with optimistic UI updates.
+
+## Out of Scope
+- Video calling
+- Message encryption
+
+## Open Questions
+- Which WebSocket library to use?
+
+## Clarifications
+- Using socket.io for WebSocket (decided during planning)
+
+---
+
+## Technical Tasks
+
+### P0-1: Set up WebSocket connection ✅
+**Severity**: CRITICAL
+**File**: src/lib/socket.ts
+
+**Problem**: No real-time communication layer exists
+
+**Solution**: Implement socket.io client with reconnection logic
+
+**Verification**:
+1. `npm run lint:fix`
+2. `npx tsc --noEmit`
+3. Verify connection in browser devtools
+
+### P1-1: Create message component
+**Severity**: HIGH
+**File**: src/components/Message.tsx
+**Figma**: https://figma.com/file/xxx/node-id=123
+
+**Problem**: Need pixel-perfect message bubbles
+
+**Solution**: Build component matching Figma spec exactly
+
+**Verification**:
+1. `npm run lint:fix`
+2. `npm run test`
+3. Visual comparison with Figma
+
+### P1-2: File attachments 🚫 BLOCKED
+**Severity**: HIGH
+**Figma**: https://figma.com/file/xxx/node-id=456
+
+**Blocked**: Figma design not accessible - need updated link
 ```
 
-- `category`: Groups related tasks (functional, styling, etc.)
-- `description`: What the task accomplishes
-- `steps`: Specific implementation and verification steps
-- `passes`: Set to `true` when task is complete
+### Task States
+- No marker = Pending
+- `✅` in header = Completed
+- `🚫 BLOCKED` in header = Blocked (cannot proceed)
+
+### Priority Levels
+- **P0 (CRITICAL)**: Must be done first, blockers for other work
+- **P1 (HIGH)**: Core functionality
+- **P2 (MEDIUM)**: Important but not blocking
+- **P3 (LOW)**: Nice to have
+
+## PROGRESS.md Format
+
+```markdown
+# Progress: Chat Application Redesign
+
+## Status: 🟡 In Progress
+
+## PRD Reference
+~/.local/PRD.md
+
+## Milestones
+
+### ✅ M1: Foundation
+- [x] WebSocket setup
+- [x] Auth integration
+
+### ⬜ M2: Core Features
+- [x] Message component
+- [ ] Real-time sync
+- [ ] File attachments
+
+## Definition of Done Checklist
+- [x] WebSocket connected
+- [ ] All tests pass
+- [ ] Figma parity verified
+
+## Session History
+| Session | Date | Context Used | Tasks Completed |
+|---------|------|--------------|-----------------|
+| 1 | 2026-02-04 | PRD + Figma | P0-1 |
+| 2 | 2026-02-04 | PRD + socket.io docs | P1-1 |
+
+## Decisions Log
+1. Using socket.io over raw WebSocket for reconnection handling
+2. Optimistic UI updates for better perceived performance
+3. React Query for server state management
+
+## Blockers
+- P1-2: Figma file access revoked, need new link from design team
+```
 
 ## Troubleshooting
 
@@ -260,12 +404,19 @@ echo $PATH | grep -q ".local/bin" || echo "Add ~/.local/bin to PATH"
 ### Docker sandbox issues
 - Verify Docker Desktop is running
 - Check sandbox exists: `docker sandbox ls`
-- Recreate if needed: `docker sandbox rm claude && docker sandbox create claude`
+- Sandbox names are project-specific: `claude-<project-folder>`
+- Recreate if needed: `docker sandbox rm claude-myproject && ralph-init`
 - Re-run `ralph-configure-mcp` after recreating
+
+### Sandbox not found
+If `ralph-afk` fails with "Sandbox not found":
+```bash
+ralph-init    # Creates sandbox for current project
+```
 
 ### Sandbox not logged in
 If `ralph-configure-mcp` or `ralph-afk` fails with "Invalid API key" or "Please run /login":
-1. Run an interactive session: `docker sandbox run claude`
+1. Run an interactive session: `docker sandbox run claude-<project-name>`
 2. Inside Claude, run `/login` and complete authentication
 3. Exit with `/exit`
 4. Retry your command
@@ -276,22 +427,32 @@ If `ralph-configure-mcp` or `ralph-afk` fails with "Invalid API key" or "Please 
 3. Re-run configuration: `ralph-configure-mcp`
 4. Verify MCP is configured: `docker sandbox exec claude claude mcp list`
 
-### PRD.md parse errors
-- Ensure valid JSON format
-- Run `ralph-clear` to reset if corrupted
-- Use `ralph-status` to validate
+### Task blocked unexpectedly
+If a task gets marked as 🚫 BLOCKED:
+1. Check `ralph-status` for blocker details
+2. Review `~/.local/PROGRESS.md` Blockers section
+3. Fix the issue (e.g., update Figma URL, add missing context)
+4. Remove the 🚫 BLOCKED marker from the task header in PRD.md
+5. Resume with `ralph-afk` or `ralph-once`
+
+### PRD.md issues
+- Run `ralph-clear` to reset with fresh template
+- Use `ralph-status` to validate current state
+- Check for markdown syntax errors in task headers
 
 ## Tips
 
 - **Start small**: Use `ralph-once` to test before `ralph-afk`
 - **Check progress**: Run `ralph-status` periodically
 - **Incremental planning**: You can run `ralph-plan` multiple times to add tasks
-- **Git safety**: PRD.md and progress.txt should be in .gitignore
-- **Voice feedback**: AFK mode uses macOS `say` for audio notifications
+- **Git safety**: PRD.md and PROGRESS.md should be in .gitignore
+- **Voice feedback**: Use `--loud` flag for audio notifications when AFK
+- **Project sandboxes**: Each project gets its own sandbox for isolation
+- **Handle blocks**: Check status after `ralph-afk` exits - exit code 2 means blocked
 
 ## Requirements
 
 - Claude CLI (`claude` command available)
 - Docker Desktop with sandbox support
-- Python 3 (for `ralph-status` JSON parsing)
-- macOS (for `say` command in AFK mode, optional)
+- Python 3 (for `ralph-status` parsing)
+- macOS (for `say` command with `--loud` flag, optional)

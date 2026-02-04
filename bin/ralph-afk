@@ -173,10 +173,11 @@ $PROGRESS_CONTENT
 Instructions:
 1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority).
 2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
-3. Spawn a sub-agent to read the PRD, load skills, load all Figma, and return a dedicated implementation plan including pixel perfect design.
-4. Spawn a sub-agent to implement the task following its Implementation Details and Verification steps.
-5. Run your type checks and validate (npm run lint:fix, tsc, npm run test, npm run build, etc.). Fix any problems now.
-6. Commit your changes without co-authoring.
+3. Take the current task, read the PRD, load skills, load all Figma, and create a dedicated implementation plan including pixel perfect design.
+4. Implement the task following the implementation plan exactly.
+5. Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
+4. Verify task (playwright, npm run test, npm run build, etc.). Fix any problems now.
+5. Commit your changes without co-authoring.
 
 ONLY WORK ON A SINGLE TASK!
 

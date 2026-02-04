@@ -29,6 +29,10 @@ import re
 import os
 import json
 
+# ANSI color codes
+YELLOW = "\033[33m"
+RESET = "\033[0m"
+
 prd_file = os.path.expanduser("~/.local/PRD.md")
 progress_file = os.path.expanduser("~/.local/PROGRESS.md")
 active_file = os.path.expanduser("~/.local/ralph-active.json")
@@ -102,6 +106,15 @@ blocked_tasks = sum(1 for _, _, _, blocked in all_tasks if blocked)
 pending_tasks = total_tasks - completed_tasks - blocked_tasks
 in_progress_count = len(active_tasks)
 
+# Determine which task is in progress
+# If there are active tasks, the first non-complete, non-blocked task is in progress
+in_progress_task_id = None
+if active_tasks:
+    for task_id, task_name, is_complete, is_blocked in all_tasks:
+        if not is_complete and not is_blocked:
+            in_progress_task_id = task_id
+            break
+
 # Determine status intelligently
 # Priority: active tasks → all complete → last from PROGRESS.md → default
 if active_tasks:
@@ -142,19 +155,20 @@ if total_tasks > 0:
     # Show task list with status icons
     for task_id, task_name, is_complete, is_blocked in all_tasks:
         # Check if this task is currently in progress
-        task_in_progress = any(
-            task_id in t.get('description', '') or task_name[:20] in t.get('description', '')
-            for t in active_tasks
-        )
+        task_in_progress = (task_id == in_progress_task_id)
 
         if is_complete:
             icon = "✅"
+            line = f"  {icon} {task_id}: "
         elif is_blocked:
             icon = "🚫"
+            line = f"  {icon} {task_id}: "
         elif task_in_progress:
             icon = "🔄"
+            line = f"  {YELLOW}{icon} {task_id}: "
         else:
             icon = "⬜"
+            line = f"  {icon} {task_id}: "
 
         # Truncate long names
         display_name = task_name[:55] + "..." if len(task_name) > 55 else task_name
@@ -162,18 +176,32 @@ if total_tasks > 0:
         display_name = display_name.replace(" ✅", "").replace("✅ ", "").replace("✅", "")
         display_name = display_name.replace(" 🚫", "").replace("🚫 ", "").replace("🚫", "")
         display_name = display_name.replace(" BLOCKED", "").replace("BLOCKED ", "").replace("BLOCKED", "")
-        print(f"  {icon} {task_id}: {display_name}")
+        
+        if task_in_progress:
+            print(f"{line}{display_name}{RESET}")
+        else:
+            print(f"{line}{display_name}")
     print("")
 
 # Show in-progress task details
 if active_tasks:
-    print(f"In Progress: {len(active_tasks)} task(s)")
+    print(f"{YELLOW}In Progress: {len(active_tasks)} task(s){RESET}")
     for task in active_tasks:
-        desc = task.get('description', 'Unknown')[:50]
+        desc = task.get('description', '').strip()
+        # If description is empty, use the detected in-progress task
+        if not desc and in_progress_task_id:
+            for tid, tname, _, _ in all_tasks:
+                if tid == in_progress_task_id:
+                    desc = f"{tid}: {tname}"
+                    break
+        if not desc:
+            desc = "Unknown task"
+        # Truncate if needed
+        desc = desc[:60] + "..." if len(desc) > 60 else desc
         started = task.get('started', '?')
         sandbox = task.get('sandbox', '?')
         pid = task.get('pid', '?')
-        print(f"  • {desc}...")
+        print(f"  {YELLOW}• {desc}{RESET}")
         print(f"    Started: {started} | PID: {pid} | Sandbox: {sandbox}")
     print("")
 
@@ -227,8 +255,15 @@ if completed_list:
 # Show what's being worked on
 if active_tasks:
     for task in active_tasks:
-        desc = task.get('description', 'Unknown')
-        print(f"Working on: {desc}")
+        desc = task.get('description', '').strip()
+        # If description is empty, use the detected in-progress task
+        if not desc and in_progress_task_id:
+            for tid, tname, _, _ in all_tasks:
+                if tid == in_progress_task_id:
+                    desc = f"{tid}: {tname}"
+                    break
+        if desc:
+            print(f"Working on: {YELLOW}{desc}{RESET}")
 
 # Show recent decisions from progress file (last 3)
 if progress_content:
