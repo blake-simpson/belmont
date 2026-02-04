@@ -110,14 +110,17 @@ if [ -f "$TECH_PLAN_FILE" ]; then
 fi
 
 claude --permission-mode acceptEdits "$FILES_TO_READ \
-1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority). \
-2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED. \
-3. Read the PRD and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow. \
-4. Load skills, load all Figma designs, and create a dedicated implementation plan including pixel perfect design. \
-5. Implement the task following the implementation plan and tech plan guidelines exactly. \
-6. Run your type checks and validate (npm run lint:fix, tsc, npm run test, npm run build, etc.). Fix any problems now. \
-7. Commit your changes without co-authoring. \
-8. Update PRD.md marking the completed task header with ✅ (e.g., '### P0-1: Task Name ✅'). \
+1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority).
+2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
+3. Launch a sub-agent to:
+    - Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
+    - Load skills, load all Figma designs, and create a dedicated implementation plan including pixel perfect design.
+    - Implement the task following the implementation plan and tech plan guidelines exactly.
+    - Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
+    - Verify task (playwright, npm run test, npm run build, etc.). Fix any problems now.
+    - At all times the sub-agent MUST consider the escape hatch protocol and report blocked if it is unable to continue.
+4. Commit your changes without co-authoring.
+8. Update PRD.md and PROGRESS.md marking the completed tasks with ✅ (e.g., '### P0-1: Task Name ✅'). \
 
 ONLY WORK ON A SINGLE TASK! \
 

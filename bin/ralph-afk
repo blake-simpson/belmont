@@ -190,7 +190,7 @@ Instructions:
 1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority).
 2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
 3. Launch a sub-agent to:
-    - Read the PRD and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
+    - Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
     - Load skills, load all Figma designs, and create a dedicated implementation plan including pixel perfect design.
     - Implement the task following the implementation plan and tech plan guidelines exactly.
     - Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
@@ -198,7 +198,7 @@ Instructions:
     - At all times the sub-agent MUST consider the escape hatch protocol and report blocked if it is unable to continue.
 4. Commit your changes without co-authoring.
 
-ONLY WORK ON A SINGLE TASK!
+ONLY WORK ON A SINGLE TASK!!!
 
 === ESCAPE HATCH ===
 

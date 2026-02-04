@@ -17,7 +17,7 @@ I will give you the input of what the tasks are. \
 Ask me as many questions as needed to clarify the approach as you plan. Continue to iteratively ask questions and refine until you are 100% concrete on your solution. Ensure all edge cases etc. are considered. Consider the product domain.  \
 Perform deep research on topics that are not clear to you. \
 
-Load the frontend design skill, vercel react best practises skill, and security skill now for planning the implementation. Also write in the plan that each agent should load these skills too when it implementes the solution. \
+Load the frontend-design skill, vercel-react-best-practises skill, and security skill now for planning the implementation. Also write in the plan that each agent should load these skills too when it implementes the solution. \
 
 You must always append accepted plan as small individual tasks to the PRD.md file. Each task contains steps to complete it. \
 Detect blockers/dependencies on tasks and ensure blockers are addressed first in the plan. \
