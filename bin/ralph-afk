@@ -2,19 +2,39 @@
 set -e
 
 # ralph-afk: Run multiple task iterations in Docker sandbox
-# Usage: ralph-afk <iterations>
+# Usage: ralph-afk <iterations> [--loud]
 
-if [ -z "$1" ]; then
-    echo "Usage: ralph-afk <iterations>"
+# Parse arguments
+ITERATIONS=""
+LOUD=false
+
+for arg in "$@"; do
+    case $arg in
+        --loud)
+            LOUD=true
+            ;;
+        *)
+            if [ -z "$ITERATIONS" ] && [[ "$arg" =~ ^[0-9]+$ ]]; then
+                ITERATIONS="$arg"
+            fi
+            ;;
+    esac
+done
+
+if [ -z "$ITERATIONS" ]; then
+    echo "Usage: ralph-afk <iterations> [--loud]"
     echo ""
     echo "Runs Claude in Docker sandbox for the specified number of iterations."
     echo "Each iteration implements one task from the PRD."
+    echo ""
+    echo "Options:"
+    echo "  --loud    Enable voice announcements"
     exit 1
 fi
 
 # Host paths for PRD files
 HOST_PRD_FILE="$HOME/.local/PRD.md"
-HOST_PROGRESS_FILE="$HOME/.local/progress.txt"
+HOST_PROGRESS_FILE="$HOME/.local/PROGRESS.md"
 CONFIG_FILE="$HOME/.ralph/config"
 
 # Load config if it exists
@@ -75,21 +95,40 @@ with open('$ACTIVE_FILE', 'w') as f:
 "
 }
 
-# Function: Get next pending task description
+# Function: Get next pending task description from markdown PRD
 get_next_task() {
     python3 -c "
-import json
+import re
 with open('$HOST_PRD_FILE', 'r') as f:
-    tasks = json.load(f)
-for t in tasks:
-    if not t.get('passes', False):
-        print(t.get('description', 'Unknown task'))
-        break
+    content = f.read()
+
+# Find task headers (### P0-1:, ### P1-1:, etc.) - prioritized by P0 > P1 > P2 > P3
+task_headers = re.findall(r'^###\s+(P\d+-\d+):\s*(.+?)$', content, re.MULTILINE)
+
+# Sort by priority (P0 first)
+for task_id, task_name in sorted(task_headers, key=lambda x: x[0]):
+    # Check if task is marked complete (has ✅ or [DONE])
+    task_section = re.search(rf'###\s+{re.escape(task_id)}:.*?(?=\n###|\n---|\Z)', content, re.DOTALL)
+    if task_section:
+        section_text = task_section.group(0)
+        if '✅' not in section_text[:100] and '[DONE]' not in section_text[:100] and '~~' not in task_name:
+            print(f'{task_id}: {task_name.strip()[:50]}')
+            break
 "
 }
 
 # Clean up on exit (remove active task)
 trap remove_active_task EXIT
+
+# Function: Update status to In Progress if currently Not Started
+update_status_to_in_progress() {
+    if [ -f "$HOST_PROGRESS_FILE" ]; then
+        if grep -q "^## Status: 🔴 Not Started" "$HOST_PROGRESS_FILE"; then
+            sed -i '' 's/^## Status: 🔴 Not Started/## Status: 🟡 In Progress/' "$HOST_PROGRESS_FILE"
+            echo "Status updated to 🟡 In Progress"
+        fi
+    fi
+}
 
 # Check sandbox exists
 if ! docker sandbox ls 2>/dev/null | grep -q "^$SANDBOX_NAME "; then
@@ -98,9 +137,14 @@ if ! docker sandbox ls 2>/dev/null | grep -q "^$SANDBOX_NAME "; then
     exit 1
 fi
 
-for ((i=1; i<=$1; i++)); do
-    echo "=== Iteration $i of $1 ==="
-    say --voice Zarvox "Iteration $i of $1" 2>/dev/null || true
+# Update status before starting work
+update_status_to_in_progress
+
+for ((i=1; i<=$ITERATIONS; i++)); do
+    echo "=== Iteration $i of $ITERATIONS ==="
+    if [ "$LOUD" = true ]; then
+        say --voice Zarvox "Iteration $i of $ITERATIONS" 2>/dev/null || true
+    fi
 
     # Track the current task as active
     CURRENT_TASK=$(get_next_task)
@@ -117,28 +161,32 @@ for ((i=1; i<=$1; i++)); do
 $PRD_CONTENT
 === END PRD.md ===
 
-=== progress.txt ===
+=== PROGRESS.md ===
 $PROGRESS_CONTENT
-=== END progress.txt ===
+=== END PROGRESS.md ===
 
 Instructions:
-1. Find the highest-priority incomplete task from the PRD above and implement it.
-2. Load the frontend design skill and vercel react best practises skill.
-3. Run your type checks and validate (npm run lint:fix, tsc, npm run build, etc.).
-4. Commit your changes without co-authoring.
-5. ONLY WORK ON A SINGLE TASK.
+1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority).
+2. A task is incomplete if it does NOT have ✅ or [DONE] in its header.
+3. Spawn a sub-agent to read the PRD, load skills, load all Figma, and return a dedicated implementation plan including pixel perfect design.
+4. Spawn a sub-agent to implement the task following its Implementation Details and Verification steps.
+5. Run your type checks and validate (npm run lint:fix, tsc, npm run test, npm run build, etc.). Fix any problems now.
+6. Commit your changes without co-authoring.
+
+ONLY WORK ON A SINGLE TASK!
 
 After completing the task, output your updates in this EXACT format:
 
 <prd-output>
-[paste the COMPLETE updated PRD JSON here, with the completed task's passes field set to true]
+[paste the COMPLETE updated PRD.md markdown here, with the completed task's header changed from '### P0-1: Task Name' to '### P0-1: Task Name ✅']
+[If the PRD was 🔴 Not Started, mark the PRD as 🟡 In Progress.]
 </prd-output>
 
 <progress-output>
-[your progress entry for this task]
+[paste the COMPLETE updated PROGRESS.md markdown here, with session history and decisions updated]
 </progress-output>
 
-If ALL tasks in the PRD are complete (all have passes: true), output:
+If ALL tasks in the PRD are complete (all have ✅), output:
 <promise>COMPLETE</promise>
 ")
 
@@ -161,11 +209,15 @@ If ALL tasks in the PRD are complete (all have passes: true), output:
 
     if [[ "$result" == *"<promise>COMPLETE</promise>"* ]]; then
         echo "PRD complete after $i iterations."
-        say --voice Zarvox "PRD complete" 2>/dev/null || true
+        if [ "$LOUD" = true ]; then
+            say --voice Zarvox "PRD complete" 2>/dev/null || true
+        fi
         exit 0
     fi
 done
 
 echo ""
-echo "Completed $1 iterations."
-say --voice Zarvox "All iterations complete" 2>/dev/null || true
+echo "Completed $ITERATIONS iterations."
+if [ "$LOUD" = true ]; then
+    say --voice Zarvox "All iterations complete" 2>/dev/null || true
+fi

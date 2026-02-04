@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# ralph-status: Show task completion summary from PRD.md
+# ralph-status: Show task completion summary from PRD.md (markdown format)
 
 PRD_DIR="$HOME/.local"
 PRD_FILE="$PRD_DIR/PRD.md"
-PROGRESS_FILE="$PRD_DIR/progress.txt"
+PROGRESS_FILE="$PRD_DIR/PROGRESS.md"
+ACTIVE_FILE="$PRD_DIR/ralph-active.json"
 
 echo "Ralph Status"
 echo "============"
@@ -15,94 +16,202 @@ if [ ! -f "$PRD_FILE" ]; then
     exit 1
 fi
 
-# Check if file is empty or just contains []
+# Check if file is empty or just has template header
 content=$(cat "$PRD_FILE")
-if [ -z "$content" ] || [ "$content" = "[]" ]; then
+if [ -z "$content" ] || [ "$content" = "# PRD" ]; then
     echo "PRD is empty. Run 'ralph-plan' to create tasks."
     exit 0
 fi
 
-# Parse JSON and show status
-# Using python for reliable JSON parsing (available on macOS)
-python3 << EOF
+# Parse markdown PRD and show status
+python3 << 'PYEOF'
+import re
+import os
 import json
-import sys
+
+prd_file = os.path.expanduser("~/.local/PRD.md")
+progress_file = os.path.expanduser("~/.local/PROGRESS.md")
+active_file = os.path.expanduser("~/.local/ralph-active.json")
 
 try:
-    with open("$PRD_FILE", "r") as f:
-        tasks = json.load(f)
-except json.JSONDecodeError:
-    print("Error: PRD.md is not valid JSON")
-    sys.exit(1)
+    with open(prd_file, "r") as f:
+        content = f.read()
 except Exception as e:
     print(f"Error reading PRD: {e}")
-    sys.exit(1)
+    exit(1)
 
-if not tasks:
-    print("No tasks in PRD.")
-    sys.exit(0)
+# Extract feature name from title
+title_match = re.search(r'^#\s+PRD:\s*(.+)$', content, re.MULTILINE)
+feature_name = title_match.group(1).strip() if title_match else "Unknown Feature"
+print(f"Feature: {feature_name}")
+print("")
 
-total = len(tasks)
-passed = sum(1 for t in tasks if t.get("passes", False))
-pending = total - passed
-
-# Group by category
-categories = {}
-for task in tasks:
-    cat = task.get("category", "uncategorized")
-    if cat not in categories:
-        categories[cat] = {"passed": 0, "pending": 0}
-    if task.get("passes", False):
-        categories[cat]["passed"] += 1
-    else:
-        categories[cat]["pending"] += 1
-
-print(f"Total Tasks: {total}")
-print(f"  Completed: {passed}")
-print(f"  Pending:   {pending}")
-print(f"  Progress:  {passed}/{total} ({100*passed//total if total > 0 else 0}%)")
-
-# Show in-progress tasks
-import os
-active_file = os.path.expanduser("~/.local/ralph-active.json")
+# Load active tasks
+active_tasks = []
 try:
     with open(active_file, "r") as f:
-        active = json.load(f)
-    if active:
-        print(f"\nIn Progress: {len(active)} task(s)")
-        for task in active:
-            desc = task.get('description', 'Unknown')[:50]
-            started = task.get('started', '?')
-            sandbox = task.get('sandbox', '?')
-            pid = task.get('pid', '?')
-            print(f"  • {desc}...")
-            print(f"    Started: {started} | PID: {pid} | Sandbox: {sandbox}")
-    else:
-        print(f"\nIn Progress: 0 task(s)")
+        active_tasks = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    active_tasks = []
+
+# Load progress content
+progress_content = ""
+try:
+    with open(progress_file, "r") as f:
+        progress_content = f.read()
 except FileNotFoundError:
-    print(f"\nIn Progress: 0 task(s)")
+    pass
+
+# Find tasks by section headers - support both formats:
+# Format 1: ### P0-1: Task Name
+# Format 2: ### Task 1: Task Name
+task_headers = re.findall(r'^###\s+(P\d+-\d+):\s*(.+?)$', content, re.MULTILINE)
+task_headers_alt = re.findall(r'^###\s+(Task\s+\d+):\s*(.+?)$', content, re.MULTILINE)
+
+# Build task info
+all_tasks = []
+
+# Process P0-1 format
+priorities = {'P0': [], 'P1': [], 'P2': [], 'P3': []}
+for task_id, task_name in task_headers:
+    priority = task_id.split('-')[0]
+    task_section = re.search(rf'###\s+{re.escape(task_id)}:.*?(?=\n###|\n---|\Z)', content, re.DOTALL)
+    is_complete = False
+    if task_section:
+        section_text = task_section.group(0)
+        is_complete = '✅' in section_text[:100] or '[DONE]' in section_text[:100] or '~~' in task_name
+    if priority in priorities:
+        priorities[priority].append((task_id, task_name.strip(), is_complete))
+    all_tasks.append((task_id, task_name.strip(), is_complete))
+
+# Process Task N format
+for task_id, task_name in task_headers_alt:
+    # Check if task is marked complete (has ✅ or [DONE] in header line)
+    is_complete = '✅' in task_name or '[DONE]' in task_name
+    # Clean up the task name
+    clean_name = task_name.replace('✅', '').replace('[DONE]', '').strip()
+    all_tasks.append((task_id, clean_name, is_complete))
+
+# Calculate totals from all_tasks (works for both formats)
+total_tasks = len(all_tasks)
+completed_tasks = sum(1 for _, _, done in all_tasks if done)
+pending_tasks = total_tasks - completed_tasks
+in_progress_count = len(active_tasks)
+
+# Determine status intelligently
+# Priority: active tasks → all complete → last from PROGRESS.md → default
+if active_tasks:
+    status = "🟡 In Progress"
+elif total_tasks > 0 and completed_tasks == total_tasks:
+    status = "🟢 Done"
+else:
+    # Find LAST status match in progress file (not first)
+    status_matches = re.findall(r'^##\s+Status:\s*(.+)$', progress_content, re.MULTILINE)
+    if status_matches:
+        status = status_matches[-1].strip()
+    else:
+        status = "🔴 Not Started"
+
+print(f"Status: {status}")
+print("")
+
+# Show task summary
+if total_tasks > 0:
+    parts = []
+    if completed_tasks > 0:
+        parts.append(f"{completed_tasks} done")
+    if in_progress_count > 0:
+        parts.append(f"{in_progress_count} in progress")
+    if pending_tasks - in_progress_count > 0:
+        parts.append(f"{pending_tasks - in_progress_count} pending")
+
+    print(f"Tasks: {', '.join(parts)} (of {total_tasks})")
+    print("")
+
+    # Show task list with status icons
+    for task_id, task_name, is_complete in all_tasks:
+        # Check if this task is currently in progress
+        task_in_progress = any(
+            task_id in t.get('description', '') or task_name[:20] in t.get('description', '')
+            for t in active_tasks
+        )
+
+        if is_complete:
+            icon = "✅"
+        elif task_in_progress:
+            icon = "🔄"
+        else:
+            icon = "⬜"
+
+        # Truncate long names
+        display_name = task_name[:55] + "..." if len(task_name) > 55 else task_name
+        # Remove ✅ from display name if already in icon
+        display_name = display_name.replace(" ✅", "").replace("✅ ", "").replace("✅", "")
+        print(f"  {icon} {task_id}: {display_name}")
+    print("")
+
+# Show in-progress task details
+if active_tasks:
+    print(f"In Progress: {len(active_tasks)} task(s)")
+    for task in active_tasks:
+        desc = task.get('description', 'Unknown')[:50]
+        started = task.get('started', '?')
+        sandbox = task.get('sandbox', '?')
+        pid = task.get('pid', '?')
+        print(f"  • {desc}...")
+        print(f"    Started: {started} | PID: {pid} | Sandbox: {sandbox}")
+    print("")
+
+# Show milestones from progress file
+try:
+    if progress_content:
+        milestones_section = re.search(r'##\s+Milestones.*?\n(.*?)(?=\n##|\Z)', progress_content, re.DOTALL)
+        if milestones_section:
+            milestones_text = milestones_section.group(1)
+            milestone_headers = re.findall(r'###\s+([⬜✅])\s+(M\d+:.*?)$', milestones_text, re.MULTILINE)
+            if milestone_headers:
+                print("Milestones:")
+                for status_icon, name in milestone_headers:
+                    print(f"  {status_icon} {name.strip()}")
+                print("")
 except Exception:
     pass
 
-print("")
-print("By Category:")
-for cat, counts in sorted(categories.items()):
-    cat_total = counts["passed"] + counts["pending"]
-    print(f"  {cat}: {counts['passed']}/{cat_total}")
+# Recent Activity - structured output
+print("Recent Activity:")
+print("---")
 
-print("")
-print("Pending Tasks:")
-for i, task in enumerate(tasks, 1):
-    if not task.get("passes", False):
-        desc = task.get("description", "No description")[:60]
-        cat = task.get("category", "?")
-        print(f"  [{cat}] {desc}...")
-EOF
+# Show last completed task
+completed_list = [
+    (task_id, task_name)
+    for task_id, task_name, done in all_tasks
+    if done
+]
+if completed_list:
+    last_id, last_name = completed_list[-1]
+    last_name = last_name.replace(" ✅", "").replace("✅ ", "").replace("✅", "").strip()
+    print(f"Last completed: {last_id} - {last_name[:50]}")
 
-# Show recent progress
-if [ -f "$PROGRESS_FILE" ] && [ -s "$PROGRESS_FILE" ]; then
-    echo ""
-    echo "Recent Progress (last 5 entries):"
-    echo "---"
-    tail -n 20 "$PROGRESS_FILE" | head -n 20
-fi
+# Show what's being worked on
+if active_tasks:
+    for task in active_tasks:
+        desc = task.get('description', 'Unknown')
+        print(f"Working on: {desc}")
+
+# Show recent decisions from progress file (last 3)
+if progress_content:
+    decisions_section = re.search(r'##\s+Decisions Log.*?\n(.*?)(?=\n##|\Z)', progress_content, re.DOTALL)
+    if decisions_section:
+        decisions_text = decisions_section.group(1)
+        # Find decision entries (usually bullet points with dates or descriptions)
+        decision_lines = [
+            line.strip()
+            for line in decisions_text.split('\n')
+            if line.strip() and line.strip().startswith('-')
+        ]
+        if decision_lines:
+            print("")
+            print("Recent decisions:")
+            for line in decision_lines[-3:]:
+                print(f"  {line}")
+PYEOF

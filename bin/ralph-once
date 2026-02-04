@@ -5,7 +5,7 @@
 
 PRD_DIR="$HOME/.local"
 PRD_FILE="$PRD_DIR/PRD.md"
-PROGRESS_FILE="$PRD_DIR/progress.txt"
+PROGRESS_FILE="$PRD_DIR/PROGRESS.md"
 
 # Active task tracking
 ACTIVE_FILE="$HOME/.local/ralph-active.json"
@@ -54,34 +54,58 @@ with open('$ACTIVE_FILE', 'w') as f:
 "
 }
 
-# Function: Get next pending task description
+# Function: Get next pending task description from markdown PRD
 get_next_task() {
     python3 -c "
-import json
+import re
 with open('$PRD_FILE', 'r') as f:
-    tasks = json.load(f)
-for t in tasks:
-    if not t.get('passes', False):
-        print(t.get('description', 'Unknown task'))
-        break
+    content = f.read()
+
+# Find task headers (### P0-1:, ### P1-1:, etc.) - prioritized by P0 > P1 > P2 > P3
+task_headers = re.findall(r'^###\s+(P\d+-\d+):\s*(.+?)$', content, re.MULTILINE)
+
+# Sort by priority (P0 first)
+for task_id, task_name in sorted(task_headers, key=lambda x: x[0]):
+    # Check if task is marked complete (has ✅ or [DONE])
+    task_section = re.search(rf'###\s+{re.escape(task_id)}:.*?(?=\n###|\n---|\Z)', content, re.DOTALL)
+    if task_section:
+        section_text = task_section.group(0)
+        if '✅' not in section_text[:100] and '[DONE]' not in section_text[:100] and '~~' not in task_name:
+            print(f'{task_id}: {task_name.strip()[:50]}')
+            break
 "
+}
+
+# Function: Update status to In Progress if currently Not Started
+update_status_to_in_progress() {
+    if [ -f "$PROGRESS_FILE" ]; then
+        if grep -q "^## Status: 🔴 Not Started" "$PROGRESS_FILE"; then
+            sed -i '' 's/^## Status: 🔴 Not Started/## Status: 🟡 In Progress/' "$PROGRESS_FILE"
+            echo "Status updated to 🟡 In Progress"
+        fi
+    fi
 }
 
 # Clean up on exit (remove active task)
 trap remove_active_task EXIT
+
+# Update status before starting work
+update_status_to_in_progress
 
 # Track the current task as active
 CURRENT_TASK=$(get_next_task)
 add_active_task "$CURRENT_TASK"
 
 claude --permission-mode acceptEdits "$PRD_FILE $PROGRESS_FILE \
-1. Read the PRD and progress file. \
-2. Load the frontend design skill and vercel react best practises skill. \
-3. Find the next incomplete task and implement it. \
-4. Commit your changes without co-authoring. \
-5. Update progress.txt with what you did. \
-6. Update PRD.md with what the task as passed, if completed successfully. \
-ONLY DO ONE TASK AT A TIME."
+1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-1:, ### P1-1:, etc. - P0 is highest priority). \
+2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. \
+3. Spawn a sub-agent to read the PRD, load skills, load all Figma, and return a dedicated implementation plan including pixel perfect design. \
+4. Spawn a sub-agent to implement the task following its Implementation Details and Verification steps. \
+5. Run your type checks and validate (npm run lint:fix, tsc, npm run test, npm run build, etc.). Fix any problems now. \
+6. Commit your changes without co-authoring. \
+7. Update PRD.md marking the completed task header with ✅ (e.g., '### P0-1: Task Name ✅'). \
+
+ONLY WORK ON A SINGLE TASK!"
 
 # Remove active task after completion
 remove_active_task
