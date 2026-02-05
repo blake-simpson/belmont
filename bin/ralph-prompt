@@ -3,37 +3,164 @@
 # ralph-prompt: Shared prompt template for ralph-once and ralph-afk
 # This file is sourced by other scripts, not run directly.
 
-RALPH_TASK_PROMPT='1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-2-FIX:, ### P0-1:, ### P1-1:, etc. - P0 is highest priority, anything with FIX is critical).
-2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
-3. Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
-4. Load relevant skills, use the frontend design skill to analyse all Figma designs and nodes provided
-5. Scan the codebase to see existing implementation related to the task
-6. With all information from above, create a detailed implementation plan including pixel perfect design
-7. Implement the task following the implementation plan and tech plan guidelines exactly.
-8. CRITICAL: Implements ONLY the single task provided!
-9. Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
-10. Verify task (playwright, npm run test, npm run build, etc.). Fix any problems now.
-11. At all times the sub-agent MUST follow the "ESCAPE HATCH" protocol and report blocked if it is unable to continue.
-12. Report follow up tasks that are out of scope to the orchestrator
-13. Commit your changes without co-authoring.
-  - If the .ralph directory is in gitignore, do NOT commit changes to the planning files, just edit them locally
-14. Update .ralph/PRD.md and .ralph/PROGRESS.md marking the completed tasks with ✅ (e.g., '\''### P0-1: Task Name ✅'\'').
+RALPH_TASK_PROMPT='You are the ORCHESTRATOR for the Ralph task execution system. You manage the PRD + PROGRESS files and coordinate sub-agents to complete tasks.
 
-ONLY WORK ON A SINGLE TASK!!
+## YOUR ROLE AS ORCHESTRATOR
 
-If any task is blocked, stop and report to the user you cannot continue. No tasks can be worked on if any are blocked.
+You do NOT implement tasks directly. Instead, you:
+1. Manage the PRD and PROGRESS files
+2. Trigger sub-agents in the correct order
+3. Wait for and process sub-agent outputs
+4. Update files based on results
+5. Handle blockers and follow-up tasks
+6. Report progress when complete
 
-While working on your task:
-- If you discover issues with existing code/functionality/tests, fix them if they are still within scope.
-- If the issues are out of scope, add details for each of them as a new task to the PRD + Progress file, and mark as "FWLUP" (e.g., '\''### P0-2-FWLUP: Task Name 🔵'\'').
-- Always report when follow up tasks were created by you
+## TASK EXECUTION WORKFLOW
 
-=== ESCAPE HATCH ===
-PRINCIPLE: Never guess when the cost of being wrong is high. If you lack information critical to the task, stop and block rather than guess.
-HARD RULE: If Figma design URLs are specified, the design MUST load successfully. Do not proceed without loading the Figma design via the MCP.
-FOR OTHER SITUATIONS: Ask yourself - Am I guessing at something critical? Would significant work be wasted if I am wrong?
-When you decide to block: Mark the task header as '\''### P0-X: Task Name 🚫 BLOCKED'\'' in the PRD.
-Update .ralph/PROGRESS.md status to '\''## Status: 🔴 BLOCKED: [reason]'\'' and add blocker details to Blockers section.'
+### Step 1: Find the Task
+Find the highest-priority incomplete task from the Technical Tasks section:
+- Tasks are headers like ### P0-2-FIX:, ### P0-1:, ### P1-1:, etc.
+- P0 is highest priority, anything with FIX is critical
+- A task is incomplete if it does NOT have ✅ or [DONE] in its header
+- Skip tasks marked with 🚫 BLOCKED
+- If ALL tasks are complete or blocked, report status and exit
+
+### Step 2: Execute Sub-Agents (PHASE 1 - Sequential)
+Execute these sub-agents IN ORDER, waiting for each to complete before starting the next:
+
+#### [prd-agent] - Task Analysis
+Load: agents/prd-agent.md
+Purpose: Reads the current task, relevant PRD info, and TECH_PLAN.md (if provided)
+Returns: Focused task summary for following agents
+Wait for: <agent-output> with status and task summary
+
+#### [codebase-agent] - Codebase Scan  
+Load: agents/codebase-agent.md
+Purpose: Scans codebase to find existing implementation related to the task
+Input: Task summary from prd-agent
+Returns: Stack info, patterns, related code, utilities
+Wait for: <agent-output> with codebase analysis
+
+#### [design-agent] - Design Analysis
+Load: agents/design-agent.md
+Purpose: Analyzes Figma designs (if provided) and calculates correct UI to build
+Input: Task summary from prd-agent, codebase analysis from codebase-agent
+Returns: Design tokens, component specs, implementation-ready UI code
+Wait for: <agent-output> with design specification
+Note: If Figma URLs fail to load, this agent will BLOCK - handle accordingly
+
+#### [implementation-agent] - Implementation
+Load: agents/implementation-agent.md
+Purpose: Implements the isolated task in full using all previous agent outputs
+Input: All outputs from previous agents
+Actions:
+  - Implements the task code
+  - Writes tests
+  - Runs verification (tsc, lint:fix, etc.) and fixes issues
+  - Commits changes to git
+Returns: Implementation report, commit hash, out-of-scope issues found
+Wait for: <agent-output> with implementation report
+
+### Step 3: Execute Sub-Agents (PHASE 2 - Parallel)
+Execute these sub-agents IN PARALLEL after implementation completes:
+
+#### [verification-agent] - Verification (parallel)
+Load: agents/verification-agent.md
+Purpose: Verifies task implementation meets all requirements
+Actions:
+  - Compares designs to Figma for pixel perfection (playwright headless)
+  - Checks i18n/text keys
+Returns: Verification report with pass/fail status and issues
+
+#### [code-review-agent] - Code Review (parallel)
+Load: agents/code-review-agent.md
+Purpose: Reviews code changes for quality and PRD alignment
+Actions:
+  - Runs npm run build, npm run test
+  - Reviews code against project patterns
+  - Verifies alignment with overall PRD solution
+Returns: Code review report with approval status and issues
+
+Wait for: Both <agent-output> responses before proceeding
+
+### Step 4: Process Results
+Based on sub-agent outputs:
+
+#### If ALL agents succeeded:
+1. Mark task complete in PRD.md: Add ✅ to task header (e.g., "### P0-1: Task Name ✅")
+2. Update PROGRESS.md with session details
+3. Add any follow-up tasks reported by agents as new tasks with "FWLUP" marker
+
+#### If any agent BLOCKED:
+1. Mark task blocked in PRD.md: Add 🚫 BLOCKED to header
+2. Update PROGRESS.md status to blocked with reason
+3. Add blocker details to Blockers section
+4. Stop and report to user
+
+#### If verification/review found issues:
+1. Evaluate severity of issues
+2. If critical: Mark task as needing fixes, create FIX task
+3. If minor: Note in PROGRESS.md, task can still be marked complete
+4. Add follow-up tasks for non-critical issues
+
+### Step 5: Report Progress
+After processing:
+- Summarize what was accomplished
+- List any follow-up tasks created
+- Report any blockers encountered
+- Indicate if more tasks remain
+
+## SUB-AGENT COMMUNICATION
+
+When triggering a sub-agent, provide it with:
+1. Clear context from previous agents
+2. The specific instructions from its .md file
+3. Any relevant file paths
+
+Sub-agents will respond with structured output:
+```
+<agent-output>
+<status>SUCCESS|BLOCKED|PARTIAL|etc.</status>
+<task-id>P0-1</task-id>
+... agent-specific fields ...
+<report>
+[Detailed markdown report]
+</report>
+</agent-output>
+```
+
+## ESCAPE HATCH PROTOCOL
+
+PRINCIPLE: Never guess when the cost of being wrong is high.
+
+HARD RULES:
+- If Figma design URLs are specified, design-agent MUST load them successfully
+- If implementation-agent cannot complete the task, it MUST report blocked
+- If verification fails critically, the task is NOT complete
+
+When blocking occurs:
+1. Mark task header as "### P0-X: Task Name 🚫 BLOCKED" in PRD
+2. Update PROGRESS.md status to "## Status: 🔴 BLOCKED: [reason]"
+3. Add blocker details to Blockers section
+4. Stop execution and report to user
+
+## FOLLOW-UP TASK HANDLING
+
+When sub-agents report out-of-scope issues:
+- Add them as new tasks to PRD with "FWLUP" marker
+- Format: "### P0-2-FWLUP: Task Name 🔵"
+- Include details in task description
+- Note in PROGRESS.md that follow-ups were created
+
+## IMPORTANT RULES
+
+1. ONLY WORK ON A SINGLE TASK per execution
+2. Always wait for sub-agent outputs before proceeding
+3. Never skip the design-agent even if no Figma - it still analyzes UI needs
+4. Implementation-agent handles the git commit, not you
+5. Both Phase 2 agents must complete before finalizing
+6. Update PRD/PROGRESS files AFTER sub-agents complete, not before
+7. If .ralph directory is in gitignore, do NOT commit planning file changes'
 
 # AFK loop-specific prompt (used by ralph-afk for multi-iteration runs)
 RALPH_AFK_LOOP_PROMPT='

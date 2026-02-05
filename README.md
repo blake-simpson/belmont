@@ -1,6 +1,6 @@
 # Ralph CLI Toolkit
 
-A CLI toolkit for running autonomous coding sessions with Claude. Ralph manages a PRD (Product Requirements Document) and tracks progress across multiple implementation iterations, supporting both local and Docker sandbox execution.
+A CLI toolkit for running autonomous coding sessions with Claude. Ralph manages a PRD (Product Requirements Document), orchestrates specialized sub-agents, and tracks progress across multiple implementation iterations.
 
 Based on the original work by Matt Pocock: [https://www.aihero.dev/getting-started-with-ralph](https://www.aihero.dev/getting-started-with-ralph)
 
@@ -8,24 +8,58 @@ Based on the original work by Matt Pocock: [https://www.aihero.dev/getting-start
 
 ```bash
 # One-time setup
-cd /Users/blake/code/sandbox/ralph
+cd /path/to/ralph
 ./bin/ralph-setup
 
 # Start a new project
 cd ~/your-project
-ralph-init               # Create Docker sandbox for this project
+ralph-init               # Initialize .ralph directory and Docker sandbox
 ralph-clear              # Reset PRD and progress
 ralph-plan               # Create PRD interactively with Claude
+ralph-tech-plan          # Create technical implementation plan
 ralph-once               # Test one task locally
 ralph-afk 10             # Run 10 iterations in Docker sandbox
 ```
+
+## Architecture
+
+Ralph uses a multi-agent pipeline to implement tasks. The orchestrator coordinates specialized sub-agents that each handle a specific part of the workflow.
+
+### Agent Pipeline
+
+#### Phase 1 - Sequential Execution
+
+| Order | Agent | Model | Purpose |
+|-------|-------|-------|---------|
+| 1 | prd-agent | Sonnet | Analyze task from PRD/TECH_PLAN |
+| 2 | codebase-agent | Sonnet | Scan codebase for patterns and context |
+| 3 | design-agent | Opus | Analyze Figma designs, extract UI specs |
+| 4 | implementation-agent | Opus | Implement the task, write tests, commit |
+
+#### Phase 2 - Parallel Execution
+
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| verification-agent | Sonnet | Verify implementation meets requirements |
+| code-review-agent | Sonnet | Review code quality and PRD alignment |
+
+The **ralph-orchestrator** (Opus) coordinates all agents, manages the PRD/PROGRESS files, and handles blockers.
+
+### Agent Responsibilities
+
+- **prd-agent**: Reads the PRD and TECH_PLAN, extracts the current task, and produces a focused summary for downstream agents
+- **codebase-agent**: Scans the codebase to find existing patterns, utilities, and conventions relevant to the task
+- **design-agent**: Loads Figma designs (if provided), extracts design tokens, and produces implementation-ready component code
+- **implementation-agent**: Implements the task using all previous agent outputs, writes tests, runs verification, and commits
+- **verification-agent**: Verifies the implementation meets acceptance criteria, runs build/tests, checks visual fidelity
+- **code-review-agent**: Reviews code quality, pattern adherence, and PRD alignment
 
 ## Installation
 
 Run the setup script:
 
 ```bash
-cd /Users/blake/code/sandbox/ralph
+cd /path/to/ralph
 ./bin/ralph-setup
 ```
 
@@ -46,11 +80,12 @@ Add this line to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) for persiste
 ## Commands
 
 ### `ralph-init`
-Initialize a Docker sandbox for the current project. Run once per project before using `ralph-afk`.
+Initialize a Docker sandbox and `.ralph` directory for the current project. Run once per project.
 
+- Creates `.ralph/` directory with PRD.md, PROGRESS.md templates
 - Creates a sandbox named `claude-<project-folder-name>`
 - Prompts you to log in to Claude inside the sandbox
-- Must be run from within your project directory
+- Optionally adds `.ralph/` to `.gitignore`
 
 ```bash
 cd ~/your-project
@@ -85,6 +120,7 @@ ralph-tech-plan
 ```
 
 **What it produces:**
+- PRD task mapping to code sections
 - Exact file structure with paths and descriptions
 - Design tokens extracted from Figma (hex colors, px values, font specs)
 - Component specifications with TypeScript interfaces and skeleton code
@@ -99,7 +135,8 @@ ralph-tech-plan
 Run a single task implementation locally. Good for testing before going AFK.
 
 - Uses `--permission-mode acceptEdits`
-- Implements one task from PRD.md (highest priority first)
+- Triggers the full agent pipeline for one task
+- Implements highest priority incomplete task from PRD.md
 - Updates PRD.md marking task complete with ✅
 - Updates PROGRESS.md with session history
 
@@ -111,9 +148,9 @@ ralph-once
 Run multiple iterations in Docker sandbox. The main AFK mode.
 
 - Runs in project-specific Docker sandbox (`claude-<project-name>`)
-- Each iteration implements one task from PRD.md
+- Each iteration triggers the full agent pipeline for one task
 - Stops early if all tasks complete or a task is blocked
-- Tracks active tasks in `~/.local/ralph/ralph-active.json`
+- Tracks active tasks in `.ralph/ralph-active.json`
 
 ```bash
 ralph-afk 10           # Run up to 10 iterations
@@ -167,18 +204,10 @@ In Progress: 1 task(s)
 Active Blockers:
   - P1-3: Figma design not accessible
 
-Milestones:
-  ✅ M1: Core functionality
-  ⬜ M2: Enhanced features
-
 Recent Activity:
 ---
 Last completed: P1-1 - Create chat message component
 Working on: P1-2: Add real-time message updates
-
-Recent decisions:
-  - Chose WebSocket over polling for real-time
-  - Using React Query for state management
 ```
 
 ### `ralph-setup`
@@ -213,10 +242,10 @@ The Figma token is:
 ### Starting a New Project Cycle
 
 1. **Navigate** to your project directory
-2. **Initialize** sandbox (once per project): `ralph-init`
+2. **Initialize** (once per project): `ralph-init`
 3. **Clear** previous state: `ralph-clear`
 4. **Plan** interactively: `ralph-plan`
-5. **Technical review** (optional but recommended): `ralph-tech-plan`
+5. **Technical review** (recommended): `ralph-tech-plan`
 6. **Test** locally: `ralph-once`
 7. **Go AFK**: `ralph-afk 20`
 
@@ -250,7 +279,7 @@ ralph-once
 git log -1
 ralph-status
 
-# Go AFK - Claude works autonomously
+# Go AFK - Claude works autonomously with the agent pipeline
 ralph-afk 15
 ```
 
@@ -260,20 +289,29 @@ While AFK mode is running (or after):
 
 ```bash
 ralph-status                    # Quick summary with task states
-cat ~/.local/ralph/PRD.md       # Full PRD with task details
-cat ~/.local/ralph/PROGRESS.md  # Session history and decisions
-cat ~/.local/ralph/TECH_PLAN.md # Technical guidelines (if created)
+cat .ralph/PRD.md               # Full PRD with task details
+cat .ralph/PROGRESS.md          # Session history and decisions
+cat .ralph/TECH_PLAN.md         # Technical guidelines (if created)
 git log --oneline -10           # See commits
 ```
 
 ## Directory Structure
 
 ```
-/Users/blake/code/sandbox/ralph/
+/path/to/ralph/
+├── .agents/
+│   ├── ralph-executor.md       # Orchestrator agent
+│   ├── prd-agent.md            # Task analysis agent
+│   ├── codebase-agent.md       # Codebase scanning agent
+│   ├── design-agent.md         # Figma/design analysis agent
+│   ├── implementation-agent.md # Implementation agent
+│   ├── verification-agent.md   # Verification agent
+│   └── code-review-agent.md    # Code review agent
 ├── bin/
 │   ├── ralph-init
 │   ├── ralph-plan
 │   ├── ralph-tech-plan
+│   ├── ralph-prompt            # Shared prompt templates
 │   ├── ralph-once
 │   ├── ralph-afk
 │   ├── ralph-clear
@@ -282,19 +320,19 @@ git log --oneline -10           # See commits
 │   └── ralph-configure-mcp
 └── README.md
 
-~/.local/
-├── bin/
-│   ├── ralph-plan -> /Users/blake/code/sandbox/ralph/bin/ralph-plan
-│   ├── ralph-once -> ...
-│   └── ...
-└── ralph/
-    ├── PRD.md              # Task definitions (markdown)
-    ├── PROGRESS.md         # Session history and status
-    ├── TECH_PLAN.md        # Technical guidelines (optional)
-    └── ralph-active.json   # Currently running tasks
+~/.local/bin/
+├── ralph-plan -> /path/to/ralph/bin/ralph-plan
+├── ralph-once -> ...
+└── ...
 
 ~/.ralph/
-└── config              # FIGMA_TOKEN and other settings
+└── config                      # FIGMA_TOKEN and other settings
+
+~/your-project/.ralph/          # Per-project state (created by ralph-init)
+├── PRD.md                      # Task definitions (markdown)
+├── PROGRESS.md                 # Session history and status
+├── TECH_PLAN.md                # Technical guidelines (optional)
+└── ralph-active.json           # Currently running tasks
 ```
 
 ## PRD Format
@@ -330,12 +368,6 @@ WebSocket-based real-time sync with optimistic UI updates.
 ## Out of Scope
 - Video calling
 - Message encryption
-
-## Open Questions
-- Which WebSocket library to use?
-
-## Clarifications
-- Using socket.io for WebSocket (decided during planning)
 
 ---
 
@@ -379,6 +411,7 @@ WebSocket-based real-time sync with optimistic UI updates.
 - No marker = Pending
 - `✅` in header = Completed
 - `🚫 BLOCKED` in header = Blocked (cannot proceed)
+- `🔵` with `FWLUP` = Follow-up task (discovered during implementation)
 
 ### Priority Levels
 - **P0 (CRITICAL)**: Must be done first, blockers for other work
@@ -386,283 +419,29 @@ WebSocket-based real-time sync with optimistic UI updates.
 - **P2 (MEDIUM)**: Important but not blocking
 - **P3 (LOW)**: Nice to have
 
-## PROGRESS.md Format
+## Agent Communication Protocol
 
-```markdown
-# Progress: Chat Application Redesign
+Sub-agents communicate via structured XML output:
 
-## Status: 🟡 In Progress
-
-## PRD Reference
-~/.local/ralph/PRD.md
-
-## Milestones
-
-### ✅ M1: Foundation
-- [x] WebSocket setup
-- [x] Auth integration
-
-### ⬜ M2: Core Features
-- [x] Message component
-- [ ] Real-time sync
-- [ ] File attachments
-
-## Definition of Done Checklist
-- [x] WebSocket connected
-- [ ] All tests pass
-- [ ] Figma parity verified
-
-## Session History
-| Session | Date       | Context Used         | Tasks Completed |
-|---------|------------|----------------------|-----------------|
-| 1       | 2026-02-04 | PRD + Figma          | P0-1            |
-| 2       | 2026-02-04 | PRD + socket.io docs | P1-1            |
-
-## Decisions Log
-1. Using socket.io over raw WebSocket for reconnection handling
-2. Optimistic UI updates for better perceived performance
-3. React Query for server state management
-
-## Blockers
-- P1-2: Figma file access revoked, need new link from design team
+```xml
+<agent-output>
+<status>SUCCESS|BLOCKED|PARTIAL|...</status>
+<task-id>P0-1</task-id>
+<!-- agent-specific fields -->
+<report>
+[Markdown report content]
+</report>
+</agent-output>
 ```
 
-## TECH_PLAN.md Format
+### Status Handling
 
-The technical plan is a detailed implementation spec with exact code:
-
-```markdown
-# Technical Plan: Chat Application Redesign
-
-## Overview
-Real-time chat with WebSocket sync, message history, and file attachments.
-
-## PRD Task Mapping
-| Code Section                         | Relevant PRD Tasks | Priority |
-|--------------------------------------|--------------------|----------|
-| src/lib/socket.ts                    | P0-1               | CRITICAL |
-| src/components/chat/MessageList.tsx  | P1-1, P1-2         | HIGH     |
-| src/components/chat/MessageInput.tsx | P1-3               | HIGH     |
-| src/hooks/useSocket.ts               | P0-1, P1-4         | CRITICAL |
-
----
-
-## File Structure
-
-\`\`\`
-src/
-├── app/
-│   └── chat/
-│       └── [roomId]/
-│           └── page.tsx          # Chat room page (Tasks: P0-1)
-├── components/
-│   └── chat/
-│       ├── MessageList.tsx       # Virtual scrolling list (Tasks: P1-1, P1-2)
-│       ├── MessageBubble.tsx     # Single message (Tasks: P1-2)
-│       ├── MessageInput.tsx      # Input with attachments (Tasks: P1-3)
-│       ├── TypingIndicator.tsx   # "User is typing..." (Tasks: P2-1)
-│       └── index.ts              # Barrel export
-├── lib/
-│   └── chat/
-│       ├── socket.ts             # Socket.io client (Tasks: P0-1)
-│       ├── types.ts              # TypeScript types
-│       └── api.ts                # REST endpoints (Tasks: P0-2)
-└── hooks/
-    └── useSocket.ts              # WebSocket hook (Tasks: P0-1)
-\`\`\`
-
----
-
-## Design Tokens (from Figma node 1234:5678)
-
-\`\`\`typescript
-// src/lib/chat/tokens.ts
-export const chatTokens = {
-  colors: {
-    bubbleSent: '#6366F1',
-    bubbleReceived: '#27272A',
-    background: '#09090B',
-    text: '#FAFAFA',
-    textMuted: '#71717A',
-    border: '#27272A',
-  },
-  spacing: {
-    messageGap: '8px',
-    bubblePadding: '12px 16px',
-    inputHeight: '48px',
-  },
-  typography: {
-    message: {
-      fontSize: '14px',
-      lineHeight: '20px',
-      fontWeight: 400,
-    },
-    timestamp: {
-      fontSize: '11px',
-      lineHeight: '16px',
-      fontWeight: 400,
-    },
-  },
-  borderRadius: {
-    bubble: '16px',
-    bubbleTail: '4px',
-    input: '24px',
-  },
-};
-\`\`\`
-
----
-
-## Component Specifications
-
-### MessageBubble.tsx
-**PRD Tasks**: P1-2
-**Figma Node**: 1234:5680
-**Reuses**: Avatar from src/components/ui
-
-\`\`\`typescript
-// src/components/chat/MessageBubble.tsx
-interface MessageBubbleProps {
-  message: Message;
-  isOwn: boolean;
-  showAvatar: boolean;
-}
-
-export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
-  return (
-    <div className={cn(
-      "flex gap-2 max-w-[70%]",
-      isOwn ? "ml-auto flex-row-reverse" : "mr-auto"
-    )}>
-      {showAvatar && <Avatar src={message.sender.avatar} size="sm" />}
-      <div className={cn(
-        "px-4 py-3 rounded-2xl",
-        isOwn 
-          ? "bg-[#6366F1] text-white rounded-br-sm" 
-          : "bg-[#27272A] text-[#FAFAFA] rounded-bl-sm"
-      )}>
-        <p className="text-sm leading-5">{message.content}</p>
-        <span className="text-[11px] text-white/60 mt-1 block">
-          {formatTime(message.createdAt)}
-        </span>
-      </div>
-    </div>
-  );
-}
-\`\`\`
-
-**States**:
-- Default: As shown above
-- With attachment: Show thumbnail + filename below content
-- Failed to send: Red border + retry icon
-
----
-
-## API Integration
-
-### Endpoints
-| Endpoint                     | Method | Purpose       | Tasks |
-|------------------------------|--------|---------------|-------|
-| /api/chat/rooms/:id/messages | GET    | Fetch history | P0-2  |
-| /api/chat/rooms/:id/messages | POST   | Send message  | P1-3  |
-
-### Types
-
-\`\`\`typescript
-// src/lib/chat/types.ts
-export interface Message {
-  id: string;
-  roomId: string;
-  content: string;
-  sender: {
-    id: string;
-    name: string;
-    avatar: string;
-  };
-  attachments?: Attachment[];
-  createdAt: string;
-  status: 'sending' | 'sent' | 'failed';
-}
-
-export interface Attachment {
-  id: string;
-  type: 'image' | 'file';
-  url: string;
-  name: string;
-  size: number;
-}
-\`\`\`
-
----
-
-## Existing Components to Reuse
-
-| Component  | Location                     | Usage                |
-|------------|------------------------------|----------------------|
-| Avatar     | src/components/ui/Avatar     | User avatars         |
-| Skeleton   | src/components/ui/Skeleton   | Loading state        |
-| IconButton | src/components/ui/IconButton | Send, attach buttons |
-| Toast      | src/components/ui/Toast      | Error notifications  |
-
----
-
-## Verification Checklist
-
-### Per-Component
-- [ ] Matches Figma pixel-perfect (overlay comparison)
-- [ ] Responsive: works 320px to 1440px
-- [ ] Keyboard accessible (Tab, Enter, Escape)
-- [ ] Loading skeleton matches final layout
-- [ ] Error state shows retry option
-
-### Integration
-- [ ] Messages sync in <500ms
-- [ ] Optimistic updates feel instant
-- [ ] Reconnects automatically after disconnect
-- [ ] No memory leaks (check React DevTools)
-
-### Commands
-\`\`\`bash
-npm run lint:fix
-npx tsc --noEmit
-npm run test -- --coverage
-npm run build
-\`\`\`
-
----
-
-## Edge Cases
-
-| Scenario            | Handling                                   |
-|---------------------|--------------------------------------------|
-| Empty room          | Show "Start the conversation" prompt       |
-| 1000+ messages      | Virtual scrolling, load 50 at a time       |
-| Very long message   | Word-wrap, no horizontal scroll            |
-| Image fails to load | Show placeholder + "Failed to load"        |
-| Offline             | Queue sends, show "Waiting for connection" |
-
----
-
-## Implementation Order
-
-1. **P0-1**: Socket connection + useSocket hook
-2. **P0-2**: REST API types and functions  
-3. **P1-1**: MessageList with virtual scrolling
-4. **P1-2**: MessageBubble component
-5. **P1-3**: MessageInput with send functionality
-6. **P2-1**: Typing indicators
-7. **P2-2**: File attachments
-
----
-
-## Notes for Implementing Agent
-
-- Run `npm run lint:fix` after every file edit
-- Check Figma node 1234:5678 for any design questions
-- Follow patterns in src/components/ui/Button.tsx
-- Commit after completing each PRD task
-- Use existing `useAuth()` hook for current user
-\`\`\`
+| Status | Action |
+|--------|--------|
+| SUCCESS | Proceed to next agent/phase |
+| BLOCKED | Stop workflow, update files, report |
+| PARTIAL | Evaluate if can proceed, may need to stop |
+| FAILED | Treat as BLOCKED |
 
 ## Troubleshooting
 
@@ -701,7 +480,7 @@ If `ralph-configure-mcp` or `ralph-afk` fails with "Invalid API key" or "Please 
 ### Task blocked unexpectedly
 If a task gets marked as 🚫 BLOCKED:
 1. Check `ralph-status` for blocker details
-2. Review `~/.local/ralph/PROGRESS.md` Blockers section
+2. Review `.ralph/PROGRESS.md` Blockers section
 3. Fix the issue (e.g., update Figma URL, add missing context)
 4. Remove the 🚫 BLOCKED marker from the task header in PRD.md
 5. Resume with `ralph-afk` or `ralph-once`
@@ -716,14 +495,15 @@ If a task gets marked as 🚫 BLOCKED:
 - **Start small**: Use `ralph-once` to test before `ralph-afk`
 - **Check progress**: Run `ralph-status` periodically
 - **Incremental planning**: You can run `ralph-plan` multiple times to add tasks
-- **Git safety**: PRD.md and PROGRESS.md should be in .gitignore
+- **Git safety**: `.ralph/` should be in .gitignore (ralph-init offers to add it)
 - **Voice feedback**: Use `--loud` flag for audio notifications when AFK
 - **Project sandboxes**: Each project gets its own sandbox for isolation
 - **Handle blocks**: Check status after `ralph-afk` exits - exit code 2 means blocked
+- **Follow-up tasks**: Agents may create FWLUP tasks for out-of-scope issues discovered during implementation
 
 ## Requirements
 
 - Claude CLI (`claude` command available)
 - Docker Desktop with sandbox support
-- Python 3 (for `ralph-status` parsing)
+- Python 3 (for task parsing in scripts)
 - macOS (for `say` command with `--loud` flag, optional)
