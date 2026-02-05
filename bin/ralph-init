@@ -8,6 +8,11 @@ WORKSPACE="$(pwd)"
 SANDBOX_NAME="claude-$(basename "$WORKSPACE")"
 RALPH_DIR=".ralph"
 
+# Find where ralph is installed (directory containing this script's parent)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RALPH_INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
+RALPH_AGENTS_DIR="$RALPH_INSTALL_DIR/.agents"
+
 echo "Initializing Ralph for: $WORKSPACE"
 echo "Sandbox name: $SANDBOX_NAME"
 echo ""
@@ -75,7 +80,53 @@ else
     fi
 fi
 
-# --- Step 3: Create Docker sandbox ---
+# --- Step 3: Install Ralph agents to project ---
+echo ""
+echo "Install Ralph agents to this project?"
+echo "  [c] Copy agents (independent copy in project)"
+echo "  [s] Symlink agents (links to ralph installation)"
+echo "  [n] Skip (don't install agents)"
+read -p "Choice [c/s/N]: " -n 1 -r AGENT_CHOICE
+echo ""
+
+if [[ $AGENT_CHOICE =~ ^[CcSs]$ ]]; then
+    # Determine target directory
+    if [ -d ".agents" ]; then
+        TARGET_DIR=".agents/ralph"
+    else
+        TARGET_DIR=".claude/agents/ralph"
+    fi
+    
+    echo "Installing agents to: $TARGET_DIR"
+    mkdir -p "$TARGET_DIR"
+    
+    if [[ $AGENT_CHOICE =~ ^[Cc]$ ]]; then
+        # Copy agents
+        for agent in "$RALPH_AGENTS_DIR"/ralph-*.md; do
+            if [ -f "$agent" ]; then
+                cp "$agent" "$TARGET_DIR/"
+                echo "  Copied: $(basename "$agent")"
+            fi
+        done
+        echo "Agents copied to $TARGET_DIR"
+    else
+        # Symlink agents
+        for agent in "$RALPH_AGENTS_DIR"/ralph-*.md; do
+            if [ -f "$agent" ]; then
+                agent_name="$(basename "$agent")"
+                # Remove existing symlink/file if present
+                rm -f "$TARGET_DIR/$agent_name"
+                ln -s "$agent" "$TARGET_DIR/$agent_name"
+                echo "  Linked: $agent_name"
+            fi
+        done
+        echo "Agents symlinked to $TARGET_DIR"
+    fi
+else
+    echo "Skipping agent installation."
+fi
+
+# --- Step 4: Create Docker sandbox ---
 echo ""
 if docker sandbox ls 2>/dev/null | grep -q "^$SANDBOX_NAME "; then
     echo "Sandbox '$SANDBOX_NAME' already exists."
