@@ -413,10 +413,10 @@ WebSocket-based real-time sync with optimistic UI updates.
 - [ ] Figma parity verified
 
 ## Session History
-| Session | Date | Context Used | Tasks Completed |
-|---------|------|--------------|-----------------|
-| 1 | 2026-02-04 | PRD + Figma | P0-1 |
-| 2 | 2026-02-04 | PRD + socket.io docs | P1-1 |
+| Session | Date       | Context Used         | Tasks Completed |
+|---------|------------|----------------------|-----------------|
+| 1       | 2026-02-04 | PRD + Figma          | P0-1            |
+| 2       | 2026-02-04 | PRD + socket.io docs | P1-1            |
 
 ## Decisions Log
 1. Using socket.io over raw WebSocket for reconnection handling
@@ -438,12 +438,12 @@ The technical plan is a detailed implementation spec with exact code:
 Real-time chat with WebSocket sync, message history, and file attachments.
 
 ## PRD Task Mapping
-| Code Section | Relevant PRD Tasks | Priority |
-|--------------|-------------------|----------|
-| src/lib/socket.ts | P0-1 | CRITICAL |
-| src/components/chat/MessageList.tsx | P1-1, P1-2 | HIGH |
-| src/components/chat/MessageInput.tsx | P1-3 | HIGH |
-| src/hooks/useSocket.ts | P0-1, P1-4 | CRITICAL |
+| Code Section                         | Relevant PRD Tasks | Priority |
+|--------------------------------------|--------------------|----------|
+| src/lib/socket.ts                    | P0-1               | CRITICAL |
+| src/components/chat/MessageList.tsx  | P1-1, P1-2         | HIGH     |
+| src/components/chat/MessageInput.tsx | P1-3               | HIGH     |
+| src/hooks/useSocket.ts               | P0-1, P1-4         | CRITICAL |
 
 ---
 
@@ -561,10 +561,10 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
 ## API Integration
 
 ### Endpoints
-| Endpoint | Method | Purpose | Tasks |
-|----------|--------|---------|-------|
-| /api/chat/rooms/:id/messages | GET | Fetch history | P0-2 |
-| /api/chat/rooms/:id/messages | POST | Send message | P1-3 |
+| Endpoint                     | Method | Purpose       | Tasks |
+|------------------------------|--------|---------------|-------|
+| /api/chat/rooms/:id/messages | GET    | Fetch history | P0-2  |
+| /api/chat/rooms/:id/messages | POST   | Send message  | P1-3  |
 
 ### Types
 
@@ -597,12 +597,12 @@ export interface Attachment {
 
 ## Existing Components to Reuse
 
-| Component | Location | Usage |
-|-----------|----------|-------|
-| Avatar | src/components/ui/Avatar | User avatars |
-| Skeleton | src/components/ui/Skeleton | Loading state |
+| Component  | Location                     | Usage                |
+|------------|------------------------------|----------------------|
+| Avatar     | src/components/ui/Avatar     | User avatars         |
+| Skeleton   | src/components/ui/Skeleton   | Loading state        |
 | IconButton | src/components/ui/IconButton | Send, attach buttons |
-| Toast | src/components/ui/Toast | Error notifications |
+| Toast      | src/components/ui/Toast      | Error notifications  |
 
 ---
 
@@ -633,13 +633,13 @@ npm run build
 
 ## Edge Cases
 
-| Scenario | Handling |
-|----------|----------|
-| Empty room | Show "Start the conversation" prompt |
-| 1000+ messages | Virtual scrolling, load 50 at a time |
-| Very long message | Word-wrap, no horizontal scroll |
-| Image fails to load | Show placeholder + "Failed to load" |
-| Offline | Queue sends, show "Waiting for connection" |
+| Scenario            | Handling                                   |
+|---------------------|--------------------------------------------|
+| Empty room          | Show "Start the conversation" prompt       |
+| 1000+ messages      | Virtual scrolling, load 50 at a time       |
+| Very long message   | Word-wrap, no horizontal scroll            |
+| Image fails to load | Show placeholder + "Failed to load"        |
+| Offline             | Queue sends, show "Waiting for connection" |
 
 ---
 

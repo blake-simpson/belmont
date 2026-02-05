@@ -3,9 +3,12 @@
 # ralph-configure-mcp: Configure Figma MCP inside Docker sandbox
 
 CONFIG_FILE="$HOME/.ralph/config"
+WORKSPACE="$(pwd)"
+SANDBOX_NAME="claude-$(basename "$WORKSPACE")"
 
 echo "Ralph MCP Configuration"
 echo "======================="
+echo "Sandbox: $SANDBOX_NAME"
 echo ""
 
 # Load config if it exists
@@ -44,28 +47,35 @@ fi
 echo "Configuring Figma MCP in Docker sandbox..."
 echo ""
 
-# Use docker sandbox run with a prompt to configure MCP
-# The sandbox must already be logged in (run 'docker sandbox run claude' first and /login)
-if ! docker sandbox run claude -p "Run this exact command to add the Figma MCP server:
+# Remove existing figma MCP config if present (ignore errors)
+echo "Removing any existing Figma MCP configuration..."
+docker sandbox run "$SANDBOX_NAME" -- mcp remove figma 2>/dev/null || true
 
-claude mcp add figma -- npx -y figma-developer-mcp --figma-api-key=$FIGMA_TOKEN
-
-Then verify it's configured by running: claude mcp list
-
-Just run these commands and exit immediately. Do not do anything else." 2>&1; then
+# Add the Figma MCP server directly via CLI (not prompting Claude)
+# Use PORT=3334 to avoid conflict with Docker sandbox which uses port 3333
+echo "Adding Figma MCP server..."
+if ! docker sandbox run "$SANDBOX_NAME" -- mcp add figma -e PORT=3334 -- npx -y figma-developer-mcp --figma-api-key="$FIGMA_TOKEN" --stdio 2>&1; then
     echo ""
     echo "Failed to configure MCP. This usually means Claude is not logged in."
     echo ""
     echo "Please run an interactive session first to login:"
-    echo "  docker sandbox run claude"
+    echo "  docker sandbox run $SANDBOX_NAME"
     echo ""
     echo "Then run '/login' inside Claude, complete authentication, and '/exit'."
     echo "After that, run 'ralph-configure-mcp' again."
     exit 1
 fi
 
+# Verify configuration
+echo ""
+echo "Verifying MCP configuration..."
+docker sandbox run "$SANDBOX_NAME" -- mcp list 2>&1
+
 echo ""
 echo "MCP configuration complete!"
 echo ""
 echo "Note: This configuration persists in the Docker sandbox."
 echo "If you delete and recreate the sandbox, run this command again."
+echo ""
+echo "Note: Figma MCP is configured to use port 3334 to avoid conflict"
+echo "with Docker sandbox infrastructure which uses port 3333."

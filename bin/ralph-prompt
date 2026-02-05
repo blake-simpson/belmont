@@ -3,27 +3,34 @@
 # ralph-prompt: Shared prompt template for ralph-once and ralph-afk
 # This file is sourced by other scripts, not run directly.
 
-RALPH_TASK_PROMPT='If any task is blocked, stop and report to the user you cannot continue. No tasks can be worked on if any are blocked.
-1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-2-FIX:, ### P0-1:, ### P1-1:, etc. - P0 is highest priority, anything with FIX is critical).
+RALPH_TASK_PROMPT='1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-2-FIX:, ### P0-1:, ### P1-1:, etc. - P0 is highest priority, anything with FIX is critical).
 2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
 3. Launch a sub-agent to:
     - Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
-    - Load skills, load all Figma designs, and create a dedicated implementation plan including pixel perfect design.
+    - Load skills, use the frontend design skill to analyse all Figma designs and nodes provided
+    - Scan the codebase to see existing implementation related to the task
+    - With all this information, create a detailed implementation plan including pixel perfect design
     - Implement the task following the implementation plan and tech plan guidelines exactly.
+    - CRITICAL: Implements ONLY the single task provided!
     - Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
     - Verify task (playwright, npm run test, npm run build, etc.). Fix any problems now.
-    - At all times the sub-agent MUST consider the escape hatch protocol and report blocked if it is unable to continue.
+    - At all times the sub-agent MUST follow the "ESCAPE HATCH" protocol and report blocked if it is unable to continue.
+    - Report follow up tasks that are out of scope to the orchestrator
 4. Commit your changes without co-authoring.
 5. Update .ralph/PRD.md and .ralph/PROGRESS.md marking the completed tasks with ✅ (e.g., '\''### P0-1: Task Name ✅'\'').
 
 ONLY WORK ON A SINGLE TASK!!
 
-If you discover issues with existing code, fix them if they are still within scope.
-If you discover tasks that need done that are out of scope, add the plan for them to the PRD + Progress file and mark as "FWLUP" (e.g., '\''### P0-2-FWLUP: Task Name 🔵'\'').
+If any task is blocked, stop and report to the user you cannot continue. No tasks can be worked on if any are blocked.
+
+While working on your task:
+- If you discover issues with existing code/functionality/tests, fix them if they are still within scope.
+- If the issues are out of scope, add details for each of them as a new task to the PRD + Progress file, and mark as "FWLUP" (e.g., '\''### P0-2-FWLUP: Task Name 🔵'\'').
+- Always report when follow up tasks were created by you
 
 === ESCAPE HATCH ===
 PRINCIPLE: Never guess when the cost of being wrong is high. If you lack information critical to the task, stop and block rather than guess.
-HARD RULE: If Figma design URLs are specified, the design MUST load successfully. Do not proceed without loading the Figma design.
+HARD RULE: If Figma design URLs are specified, the design MUST load successfully. Do not proceed without loading the Figma design via the MCP.
 FOR OTHER SITUATIONS: Ask yourself - Am I guessing at something critical? Would significant work be wasted if I am wrong?
 When you decide to block: Mark the task header as '\''### P0-X: Task Name 🚫 BLOCKED'\'' in the PRD.
 Update .ralph/PROGRESS.md status to '\''## Status: 🔴 BLOCKED: [reason]'\'' and add blocker details to Blockers section.'
@@ -33,7 +40,7 @@ RALPH_AFK_LOOP_PROMPT='
 === LOOP HANDLING ===
 You are running in an automated loop. After completing your task:
 
-If you completed the task successfully AND all tasks in the PRD are now complete (all have ✅), output:
+If you completed the task successfully AND all other tasks in the PRD are now complete (all have ✅), output:
 <promise>COMPLETE</promise>
 
 If you are blocked and cannot proceed, output:
@@ -45,5 +52,8 @@ If you are blocked and cannot proceed, output:
   <resolution-hint>[How the user can resolve this]</resolution-hint>
 </blocked-details>
 
-These signals control the loop - COMPLETE exits successfully, BLOCKED stops for human intervention.
+If there are more tasks, simply report briefly what you did this iteration and output:
+<promise>CONTINUE</promise>
+
+These signals control the loop - COMPLETE exits successfully, BLOCKED stops for human intervention, CONTINUE continues to next task.
 === END LOOP HANDLING ==='

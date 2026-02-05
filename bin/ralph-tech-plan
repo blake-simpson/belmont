@@ -85,7 +85,7 @@ Good questions to ask: \
 - Are there performance requirements? \
 - What testing approach should be used? \
 
-After each answer, ask another question OR say 'I have enough information to write the tech plan now.' \
+After each answer, ask another question OR  if you think you are done, ask the user if they have any other questions or if they are ready to write the tech plan. \
 Do NOT proceed to writing until you've gathered sufficient context. \
 
 === FIGMA DESIGNS === \
@@ -97,7 +97,7 @@ If the PRD contains Figma URLs, load them using the Figma MCP tool and extract: 
 - Component dimensions \
 - Border radius, shadows, etc. \
 
-Include these exact values in the tech plan. \
+Map these values to the design system and include them in the tech plan. \
 
 === WHEN READY TO WRITE === \
 
