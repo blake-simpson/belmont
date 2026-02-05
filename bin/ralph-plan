@@ -17,97 +17,118 @@ if [ ! -d "$RALPH_DIR" ]; then
 fi
 
 claude --allowedTools "Write,Read,Glob,Grep,LS,mcp__figma,mcp_atlasian,WebFetch" --disallowedTools "Bash,Edit,StrReplace" -- "$PRD_FILE $PROGRESS_FILE $TECH_PLAN_FILE \
-We are about to plan a set of technical features. \
-I will give you the input of what the tasks are. \
-Ask me as many questions as needed to clarify the approach as you plan. Continue to iteratively ask questions and refine until you are 100% concrete on your solution. Ensure all edge cases etc. are considered. Consider the product domain.  \
-Perform deep research on topics that are not clear to you. \
+We are about to plan a set of technical features.
+I will give you the input of what the tasks are.
+Ask me as many questions as needed to clarify the approach as you plan. Continue to iteratively ask questions and refine until you are 100% concrete on your solution. Ensure all edge cases etc. are considered. Consider the product domain.
+Perform deep research on topics that are not clear to you.
+You must ALWAYS ask the user for clarification on the approach and the tasks to be planned. Ask the user if they are happy to finalise the plan or if they have more questions.
 
-Load skills like: frontend-design, vercel-react-best-practises, security, etc. now that are relevant for the project to help plan the implementation. Also list in the plan that relevant skills the agent should load when it implementes the solution. \
+Load skills like: frontend-design, vercel-react-best-practises, security, etc. now that are relevant for the project to help plan the implementation. Also list in the plan the relevant skills that the agent should load when it implementes the solution.
 
-You must always append accepted plan as small individual tasks to the PRD.md file. Each task contains steps to complete it. \
-Detect blockers/dependencies on tasks and ensure blockers are addressed first in the plan. \
+You must always append accepted plan as small individual tasks to the PRD.md file. Each task contains steps to complete it.
+Detect blockers/dependencies on tasks and ensure blockers are addressed first in the plan.
 
-Each item must involve steps checking the results (at minimum linting / tsc / npm test). \
+Each item must involve steps checking the results (at minimum linting / tsc / npm test).
 
-If Figma design URLs are included, you will need to add the exact Figma URLs to the PRD so that future agents know which nodes these refer too. \
+If Figma design URLs are included, you will need to add the exact Figma URLs to the PRD so that future agents know which nodes these refer too.
 
-Always consider that the follow up implementation agent will only have the PRD + progress as context. It is critical that agents gets every piece of information it needs. \
- 
-PRDs should follow this structure: \
- 
-\`\`\`markdown \
-# PRD: [Feature Name] \
- 
-## Overview \
-[1-2 sentence description] \
- 
-## Problem Statement \
-[What problem does this solve?] \
- 
-## Success Criteria (Definition of Done) \
-- [ ] Criterion 1 \
-- [ ] Criterion 2 \
-- [ ] Criterion 3 \ 
- 
-## Acceptance Criteria (BDD) \
- 
-### Scenario: [Scenario Name] \
-Given [context] \ 
-And [more context] \ 
-When [action] \ 
-Then [expected result] \ 
-And [additional assertions] \ 
- 
-## Technical Approach \ 
-[High-level implementation strategy] \ 
- 
-## Out of Scope \ 
-[What this feature explicitly does NOT include] \ 
- 
-## Open Questions \ 
-[Questions that need answers before implementation] \ 
- 
-## Clarifications \ 
-[Answers to open questions, added during Phase 1] \ 
+Always consider that the follow up implementation agent will only have the PRD + progress as context. It is critical that agents get every piece of information they need.
 
-## Technical Context (for implementation agents) \ 
-[Add all context needed for follow up agents (Figma URLs, technical decisions from interview, edge cases, conflicts, etc.)] \ 
-\`\`\` \
+PRDs should follow this structure:
 
-Progress files (PROGRESS.md) should follow this structure: \
- 
-\`\`\`markdown \
-# Progress: [Feature Name] \
- 
-## Status: [🔴 Not Started | 🟡 In Progress | ✅ Complete] \
- 
-## PRD Reference \
-.ralph/PRD.md \
- 
-## Milestones \
- 
-### ⬜ M1: [Milestone Name] \
-- [ ] Task 1 \
-- [ ] Task 2 \
- 
-### ⬜ M2: [Milestone Name] \
-- [ ] Task 1 \
- 
-## Definition of Done Checklist \
-- [ ] DoD Item 1 \  
-- [ ] DoD Item 2 \  
+\`\`\`markdown
+# PRD: [Feature Name]
 
-## Session History \
-| Session | Date | Context Used | Milestones Completed | \
-|---------|------|--------------|---------------------| \
- 
-## Decisions Log \    
-[Numbered list of key decisions with rationale] \    
- 
-## Blockers \
-[Any blocking issues] \    
-\`\`\` \
+## Overview
+[1-2 sentence description]
 
-We are in plan mode so that I can provide you the tasks to plan. Please await my input. \
+## Problem Statement
+[What problem does this solve?]
+
+## Success Criteria (Definition of Done)
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
+## Acceptance Criteria (BDD)
+
+### Scenario: [Scenario Name]
+Given [context]
+And [more context]
+When [action]
+Then [expected result]
+And [additional assertions]
+
+## Technical Approach
+[High-level implementation strategy]
+ 
+## Out of Scope
+[What this feature explicitly does NOT include]
+
+## Open Questions
+[Questions that need answers before implementation]
+
+## Clarifications
+[Answers to open questions, added during the planning phase]
+
+## Technical Context (for implementation agents)
+[Add all context needed for follow up agents (Figma URLs, technical decisions from interview, edge cases, conflicts, etc.)]
+
+## Tasks
+[List all sub-tasks required to complete the feature. These are the tasks that will be used by the implementation agents.]
+[Provide all information needed for the implementation agents to understand their isolated task]
+
+Example:
+### P0-1: [Task Name]
+**Severity**: CRITICAL
+
+**Task Description**: 
+[Detailed description of the sub-task]
+
+**Solution**: 
+[Detailed description of the solution to the sub-task]
+
+**Notes**:
+[Notes needed by sub agents. Figma nodes, key choices, etc.]
+
+**Verification**:
+[List of steps to verify the task is complete]
+\`\`\`
+
+
+Progress files (PROGRESS.md) should follow this structure:
+
+\`\`\`markdown
+# Progress: [Feature Name]
+
+## Status: [🔴 Not Started | 🟡 In Progress | ✅ Complete]
+
+## PRD Reference
+.ralph/PRD.md
+ 
+## Milestones
+ 
+### ⬜ M1: [Milestone Name]
+- [ ] Task 1
+- [ ] Task 2
+
+### ⬜ M2: [Milestone Name]
+- [ ] Task 1
+
+## Definition of Done Checklist
+- [ ] DoD Item 1
+- [ ] DoD Item 2
+
+## Session History
+| Session | Date | Context Used | Milestones Completed |
+|---------|------|--------------|---------------------|
+
+## Decisions Log
+[Numbered list of key decisions with rationale]
+
+## Blockers 
+[Any blocking issues]
+\`\`\`
+
+We are in plan mode so that I can provide you the tasks to plan. Please await my input.
 After we have finished planning you should write the PRD.md file and exit. We DO NOT want to implement the plan now.
 "

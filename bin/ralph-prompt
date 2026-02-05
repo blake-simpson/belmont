@@ -5,19 +5,19 @@
 
 RALPH_TASK_PROMPT='1. Find the highest-priority incomplete task from the Technical Tasks section (tasks are headers like ### P0-2-FIX:, ### P0-1:, ### P1-1:, etc. - P0 is highest priority, anything with FIX is critical).
 2. A task is incomplete if it does NOT have ✅ or [DONE] in its header. Skip tasks marked with 🚫 BLOCKED.
-3. Launch a sub-agent to:
-    - Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
-    - Load skills, use the frontend design skill to analyse all Figma designs and nodes provided
-    - Scan the codebase to see existing implementation related to the task
-    - With all this information, create a detailed implementation plan including pixel perfect design
-    - Implement the task following the implementation plan and tech plan guidelines exactly.
-    - CRITICAL: Implements ONLY the single task provided!
-    - Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
-    - Verify task (playwright, npm run test, npm run build, etc.). Fix any problems now.
-    - At all times the sub-agent MUST follow the "ESCAPE HATCH" protocol and report blocked if it is unable to continue.
-    - Report follow up tasks that are out of scope to the orchestrator
-4. Commit your changes without co-authoring.
-5. Update .ralph/PRD.md and .ralph/PROGRESS.md marking the completed tasks with ✅ (e.g., '\''### P0-1: Task Name ✅'\'').
+3. Read current task, the relevant PRD info, and TECH_PLAN.md (if provided). The tech plan contains architecture decisions, code patterns, and implementation guidelines you MUST follow.
+4. Load relevant skills, use the frontend design skill to analyse all Figma designs and nodes provided
+5. Scan the codebase to see existing implementation related to the task
+6. With all information from above, create a detailed implementation plan including pixel perfect design
+7. Implement the task following the implementation plan and tech plan guidelines exactly.
+8. CRITICAL: Implements ONLY the single task provided!
+9. Run your type checks and validate (npm run lint:fix, tsc, etc.) and fix any issues.
+10. Verify task (playwright, npm run test, npm run build, etc.). Fix any problems now.
+11. At all times the sub-agent MUST follow the "ESCAPE HATCH" protocol and report blocked if it is unable to continue.
+12. Report follow up tasks that are out of scope to the orchestrator
+13. Commit your changes without co-authoring.
+  - If the .ralph directory is in gitignore, do NOT commit changes to the planning files, just edit them locally
+14. Update .ralph/PRD.md and .ralph/PROGRESS.md marking the completed tasks with ✅ (e.g., '\''### P0-1: Task Name ✅'\'').
 
 ONLY WORK ON A SINGLE TASK!!
 

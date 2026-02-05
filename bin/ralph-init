@@ -30,88 +30,12 @@ if [ ! -d "$RALPH_DIR" ]; then
     
     # Create empty PRD.md
     cat > "$RALPH_DIR/PRD.md" << 'EOF'
-# PRD: [Feature Name]
-
-## Overview
-[1-2 sentence description]
-
-## Problem Statement
-[What problem does this solve?]
-
-## Success Criteria (Definition of Done)
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
-
-## Acceptance Criteria (BDD)
-
-### Scenario: [Scenario Name]
-Given [context]
-And [more context]
-When [action]
-Then [expected result]
-And [additional assertions]
-
-## Technical Approach
-[High-level implementation strategy]
-
-## Out of Scope
-[What this feature explicitly does NOT include]
-
-## Open Questions
-[Questions that need answers before implementation]
-
-## Clarifications
-[Answers to open questions, added during planning]
-
----
-
-## Summary Statistics
-
-| Severity | Count | Status |
-|----------|-------|--------|
-| CRITICAL (P0) | 0 | Pending |
-| HIGH (P1) | 0 | Pending |
-| MEDIUM (P2) | 0 | Pending |
-| **Total** | **0** | |
-
-## Agent Instructions
-
-Before implementing ANY task:
-1. Load skills: `frontend-design`, `vercel-react-best-practices`, `vibesec`
-2. Read the full task description including Implementation Details
-3. Follow the verification steps exactly
-4. Mark task complete by adding ✅ to the header
+Inform the user to run 'ralph-plan' to create a plan for the feature.
 EOF
 
     # Create empty PROGRESS.md
     cat > "$RALPH_DIR/PROGRESS.md" << 'EOF'
 # Progress: [Feature Name]
-
-## Status: 🔴 Not Started
-
-## PRD Reference
-.ralph/PRD.md
-
-## Milestones
-
-### ⬜ M1: [Milestone Name]
-- [ ] Task 1
-- [ ] Task 2
-
-## Definition of Done Checklist
-- [ ] DoD Item 1
-- [ ] DoD Item 2
-
-## Session History
-| Session | Date | Context Used | Tasks Completed |
-|---------|------|--------------|-----------------|
-
-## Decisions Log
-[Numbered list of key decisions with rationale]
-
-## Blockers
-[Any blocking issues]
 EOF
 
     # Create empty active tasks file
