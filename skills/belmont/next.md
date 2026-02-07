@@ -5,7 +5,7 @@ alwaysApply: false
 
 # Belmont: Next
 
-You are a lightweight implementation orchestrator. Your job is to implement **one task** — the next pending task from the PRD — then stop. Unlike the full `/belmont:implement` pipeline, you skip the multi-phase analysis (prd-agent, codebase-agent, design-agent) and dispatch a single task directly to the implementation agent.
+You are a lightweight implementation orchestrator. Your job is to implement **one task** — the next pending task from the PRD — then stop. Unlike the full `/belmont:implement` pipeline, you skip the multi-phase analysis (prd-agent, codebase-agent, design-agent) and create a minimal MILESTONE file with just enough context for the implementation agent.
 
 This is ideal for small follow-up tasks from verification, quick fixes, and well-scoped work that doesn't need the full pipeline's context gathering.
 
@@ -46,17 +46,49 @@ Milestone: [Milestone ID and name]
 Task:      [Task ID]: [Task Name]
 ```
 
-## Step 2: Build the Task Summary
+## Step 2: Create a Minimal MILESTONE File
 
-Read the task definition from `.belmont/PRD.md` and `.belmont/TECH_PLAN.md` (if it exists) and assemble a focused summary for the implementation agent. Extract:
+Create `.belmont/MILESTONE.md` with a focused, lightweight version of the milestone file. Since this is a single-task shortcut, you fill in the context directly instead of spawning analysis agents.
 
-1. **Task ID, name, priority, severity**
-2. **Task description and solution** from the PRD
-3. **Acceptance criteria / verification steps**
-4. **Relevant technical context** from TECH_PLAN.md (if applicable)
-5. **Figma URLs** (if any — load them via MCP and extract the design context to inform your plan)
+```markdown
+# Milestone: [ID] — [Name] (Single Task)
 
-This replaces the prd-agent, codebase-agent, and design-agent phases. You are gathering just enough context for the implementation agent to do its work. Keep it focused — this is a single, small task.
+## Status
+- **Milestone**: [e.g., M2: Core Features]
+- **Mode**: Lightweight (next skill — single task, no analysis agents)
+- **Created**: [timestamp]
+- **Tasks**:
+  - [ ] [Task ID]: [Task Name]
+
+## Orchestrator Context
+
+### Current Task
+[Task ID and name — this is the only task being implemented]
+
+### Task Definition
+[Copy the FULL task definition from PRD.md verbatim — including all fields: description, solution, notes, verification, Figma URLs, etc.]
+
+### Relevant Tech Plan Context
+[Extract sections from TECH_PLAN.md that are relevant to this specific task. If no TECH_PLAN exists, note that.]
+
+### Scope Boundaries
+- **In Scope**: Only the single task listed above
+- **Out of Scope**: [Copy the PRD's "Out of Scope" section verbatim]
+
+## PRD Analysis
+[Not populated — lightweight mode skips the PRD agent]
+
+## Codebase Analysis
+[Not populated — lightweight mode skips the codebase agent. The implementation agent will explore the codebase as needed.]
+
+## Design Specifications
+[Not populated — lightweight mode skips the design agent. Note any Figma URLs here if present.]
+
+## Implementation Log
+[Written by implementation-agent]
+```
+
+If Figma URLs exist for this task, note them in the Design Specifications section so the implementation agent is aware, but do not spawn a design agent.
 
 ## Step 3: Dispatch to Implementation Agent
 
@@ -66,31 +98,9 @@ This replaces the prd-agent, codebase-agent, and design-agent phases. You are ga
 >
 > **MANDATORY FIRST STEP**: Read the file `.agents/belmont/implementation-agent.md` NOW before doing anything else. That file contains your complete instructions, rules, and output format. You must follow every rule in that file. Do NOT proceed until you have read it.
 >
-> Implement the following **single task**. Complete it fully (code, tests, verification, commit), then stop.
+> The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions. This is a single-task run — implement only the one task listed, then stop.
 >
-> ## Task Summary
->
-> ---
-> [Paste the task summary you assembled in Step 2]
-> ---
->
-> ## Codebase Analysis
->
-> No codebase scan was performed. Explore the codebase as needed while implementing. Follow existing patterns and conventions. Check `CLAUDE.md` (if it exists) for project rules.
->
-> ## Design Specifications
->
-> No design analysis was performed. [If Figma URLs exist, note them here. Otherwise: "No Figma designs for this task."]
->
-> For this task:
-> 1. Run the Step 0 scope validation from your instructions
-> 2. Implement the task
-> 3. Write tests (if appropriate for the scope)
-> 4. Run verification (tsc, lint:fix, test, build) and fix issues
-> 5. Commit with a clear message referencing the task ID
-> 6. Mark the task complete: update `.belmont/PRD.md` (add ✅ to task header) and `.belmont/PROGRESS.md` (mark checkbox `[x]`)
->
-> Return an implementation report covering: status, files changed, commit, and any out-of-scope issues found.
+> **Note**: The PRD Analysis, Codebase Analysis, and Design Specifications sections are not populated (lightweight mode). Explore the codebase as needed while implementing. Follow existing patterns and conventions. Check `CLAUDE.md` (if it exists) for project rules.
 
 **Wait for**: Sub-agent to complete.
 
@@ -98,14 +108,21 @@ This replaces the prd-agent, codebase-agent, and design-agent phases. You are ga
 
 After the implementation agent completes:
 
-1. **Verify tracking updates** — the implementation agent should have marked the task in PRD.md and PROGRESS.md. If missed, update them now.
-2. **Handle follow-up tasks** — if the implementation report listed out-of-scope issues:
+1. **Read the Implementation Log** from `.belmont/MILESTONE.md`
+2. **Verify tracking updates** — the implementation agent should have marked the task in PRD.md and PROGRESS.md. If missed, update them now.
+3. **Handle follow-up tasks** — if the implementation log listed out-of-scope issues:
    - Add them as new FWLUP tasks to `.belmont/PRD.md`
    - Add them to the appropriate milestone in `.belmont/PROGRESS.md`
-3. **Check milestone completion** — if this was the last task in the milestone:
+4. **Check milestone completion** — if this was the last task in the milestone:
    - Update milestone status: `### ⬜ M1:` becomes `### ✅ M1:`
 
-## Step 5: Report
+## Step 5: Clean Up MILESTONE File
+
+Archive the MILESTONE file: `.belmont/MILESTONE.md` → `.belmont/MILESTONE-[TaskID].done.md` (e.g., `MILESTONE-P1-3.done.md`)
+
+This prevents stale context from bleeding into the next run.
+
+## Step 6: Report
 
 Output a brief summary:
 
@@ -128,7 +145,8 @@ Prompt the user to "/clear" and then "/belmont:status", "/belmont:next", or "/be
 
 1. **One task only** — find the next task, implement it, stop. Do not continue to the next task.
 2. **Use the implementation agent** — dispatch to a sub-agent, don't implement code yourself
-3. **Minimal context gathering** — you replace the analysis phases by reading the PRD/TECH_PLAN directly. Keep it lightweight.
-4. **Stay in scope** — only implement what the task requires
-5. **Update tracking** — ensure the task is marked complete in both PRD.md and PROGRESS.md
-6. **Know your limits** — if the task is too complex for this lightweight approach, tell the user and suggest `/belmont:implement`
+3. **Create the MILESTONE file** — even in lightweight mode, use the MILESTONE file as the contract with the implementation agent
+4. **Clean up after** — archive the MILESTONE file when done
+5. **Stay in scope** — only implement what the task requires
+6. **Update tracking** — ensure the task is marked complete in both PRD.md and PROGRESS.md
+7. **Know your limits** — if the task is too complex for this lightweight approach, tell the user and suggest `/belmont:implement`

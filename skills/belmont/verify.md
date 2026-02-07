@@ -14,6 +14,8 @@ Read these files first:
 - `.belmont/PROGRESS.md` - Current progress tracking
 - `.belmont/TECH_PLAN.md` - Technical implementation plan (if exists)
 
+Also check for archived MILESTONE files (`.belmont/MILESTONE-*.done.md`) — these contain the implementation context from the most recent milestone and can provide useful reference for verification.
+
 ## Step 1: Identify Completed Tasks
 
 1. Read `.belmont/PRD.md` and find all tasks marked with ✅
@@ -62,6 +64,7 @@ For ALL completed tasks together, spawn these two sub-agents **simultaneously** 
 >
 > Read `.belmont/PRD.md` for acceptance criteria and task details.
 > Read `.belmont/TECH_PLAN.md` for technical specifications (if it exists).
+> Check for archived MILESTONE files (`.belmont/MILESTONE-*.done.md`) for implementation context.
 >
 > Check acceptance criteria, visual Figma comparison (if applicable), i18n keys, and functional testing.
 >
@@ -91,6 +94,7 @@ For ALL completed tasks together, spawn these two sub-agents **simultaneously** 
 >
 > Read `.belmont/PRD.md` for task details and planned solution.
 > Read `.belmont/TECH_PLAN.md` for technical specifications (if it exists).
+> Check for archived MILESTONE files (`.belmont/MILESTONE-*.done.md`) for implementation context.
 >
 > Detect the project's package manager (check for `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`/`bun.lock`, or `package-lock.json`; also check the `packageManager` field in `package.json`). Use the detected package manager to run build and test commands (e.g. `pnpm run build`, `yarn run build`, etc. — default to `npm` if unsure). Review code quality, pattern adherence, and PRD alignment.
 >

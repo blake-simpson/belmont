@@ -54,7 +54,7 @@ Final: Prompt uset to "/clear" and "/belmont:tech-plan"
 
 - Each task must include verification steps (at minimum linting / tsc / test via the project's package manager)
 - Detect blockers/dependencies on tasks and ensure blockers are addressed first
-- Always consider that the follow-up implementation agent will only have the PRD + PROGRESS + TECH_PLAN as context
+- Always consider that the follow-up implementation agents communicate through a MILESTONE file. The orchestrator extracts relevant PRD context into this file, and each agent reads from it. Ensure the PRD contains all necessary detail so the orchestrator and agents can extract what they need.
 - It is critical that agents get every piece of information they need
 - List in the plan the relevant skills the agent should load when implementing
 

@@ -5,7 +5,7 @@ alwaysApply: false
 
 # Belmont: Implement
 
-You are the implementation orchestrator. Your job is to implement the next pending milestone from the PRD by executing tasks through a structured agent pipeline.
+You are the implementation orchestrator. Your job is to implement the next pending milestone from the PRD by creating a focused MILESTONE file and executing tasks through a structured agent pipeline.
 
 ## Setup
 
@@ -22,9 +22,56 @@ Read these files first:
 4. Select the **first pending milestone**
 5. If all milestones are complete, report "All milestones complete!" and stop
 
+## Step 2: Create the MILESTONE File
+
+**This is the key change.** Instead of passing context through sub-agent prompts, you write a structured MILESTONE file that all agents read from and write to.
+
+Create `.belmont/MILESTONE.md` with the following structure. Fill in the `## Orchestrator Context` section using information from the PRD, PROGRESS, and TECH_PLAN:
+
+```markdown
+# Milestone: [ID] — [Name]
+
+## Status
+- **Milestone**: [e.g., M2: Core Features]
+- **Created**: [timestamp]
+- **Tasks**:
+  - [ ] [Task ID]: [Task Name]
+  - [ ] [Task ID]: [Task Name]
+  ...
+
+## Orchestrator Context
+
+### Current Milestone
+[Milestone ID and name, with the full list of incomplete tasks in this milestone]
+
+### Relevant PRD Context
+[Extract from PRD.md: the Overview, Problem Statement, Technical Approach, and Out of Scope sections. Also extract the FULL task definitions for every incomplete task in this milestone — copy them verbatim from the PRD including all fields (description, solution, notes, verification, Figma URLs, etc.)]
+
+### Scope Boundaries
+- **In Scope**: Only tasks listed above in this milestone
+- **Out of Scope**: [Copy the PRD's "Out of Scope" section verbatim]
+- **Milestone Boundary**: Do NOT implement tasks from other milestones
+
+## PRD Analysis
+[Written by prd-agent — detailed task summaries, acceptance criteria, scope per task]
+
+## Codebase Analysis
+[Written by codebase-agent — stack, patterns, conventions, related code, utilities]
+
+## Design Specifications
+[Written by design-agent — tokens, component specs, layout code, accessibility]
+
+## Implementation Log
+[Written by implementation-agent — per-task status, files changed, commits, issues]
+```
+
+**IMPORTANT**: The `## Orchestrator Context` section must contain ALL information the PRD agent needs to do its job. Copy task definitions verbatim from the PRD — don't summarize. The PRD agent will then produce focused, structured summaries in `## PRD Analysis`.
+
+The four section headings (`## PRD Analysis`, `## Codebase Analysis`, `## Design Specifications`, `## Implementation Log`) should be present but empty — each agent will fill in its section.
+
 ## Sub-Agent Execution Model
 
-**CRITICAL**: You are the **orchestrator**. You MUST NOT perform the phase work yourself. Each phase below MUST be dispatched to a **sub-agent** — a separate, isolated process that runs the phase instructions and returns its output to you.
+**CRITICAL**: You are the **orchestrator**. You MUST NOT perform the phase work yourself. Each phase below MUST be dispatched to a **sub-agent** — a separate, isolated process that runs the phase instructions and returns when complete.
 
 **How to spawn sub-agents**:
 - **Claude Code / Codex**: Use the `Task` tool. Pass the sub-agent prompt as the task description.
@@ -32,26 +79,27 @@ Read these files first:
 
 **Why sub-agents matter**:
 - Each phase runs with a focused context, reducing errors and confusion
-- The orchestrator stays clean — it only manages flow, inputs, and outputs
-- Sub-agents can be parallelized where phases are independent (e.g., verification)
+- The orchestrator stays clean — it only manages flow and the MILESTONE file
+- Sub-agents read from the MILESTONE file directly, keeping their prompts small
 
 **Rules for the orchestrator**:
 1. **DO NOT** read `.agents/belmont/*-agent.md` files yourself — the sub-agents read them
 2. **DO NOT** scan the codebase, analyze designs, or write implementation code — sub-agents do this
-3. **DO** compose the sub-agent prompts using the templates below, filling in the bracketed values
-4. **DO** collect each sub-agent's output and pass it as input to the next phase
-5. **DO** handle blockers and errors reported by sub-agents
-6. **DO** include the full sub-agent preamble (identity + mandatory agent file) in every sub-agent prompt — this prevents the sub-agent from using other agent definitions in the project
+3. **DO** create the MILESTONE file with full orchestrator context before spawning any sub-agent
+4. **DO** spawn sub-agents with minimal prompts (they read the MILESTONE file themselves)
+5. **DO** wait for each sub-agent to complete before spawning the next
+6. **DO** handle blockers and errors reported by sub-agents
+7. **DO** include the full sub-agent preamble (identity + mandatory agent file) in every sub-agent prompt
 
-## Step 2: Process the Milestone
+## Step 3: Run the Agent Pipeline
 
-Run ALL incomplete tasks in the milestone through the four phases below. Each phase receives the **entire list of tasks** — not one task at a time. This means you spawn exactly **4 sub-agents per milestone**.
+Run ALL incomplete tasks in the milestone through the four phases below. Each agent reads its context from the MILESTONE file and writes its output back to it. This means you spawn exactly **4 sub-agents per milestone** with minimal prompts.
 
 ---
 
 ### Phase 1: Task Analysis (prd-agent)
 
-**Purpose**: Analyze ALL tasks in the milestone, extract all relevant context from PRD and TECH_PLAN.md.
+**Purpose**: Analyze ALL tasks in the milestone, extract all relevant context from PRD and TECH_PLAN.md, write structured task summaries to the MILESTONE file.
 
 **Spawn a sub-agent with this prompt**:
 
@@ -59,28 +107,15 @@ Run ALL incomplete tasks in the milestone through the four phases below. Each ph
 >
 > **MANDATORY FIRST STEP**: Read the file `.agents/belmont/prd-agent.md` NOW before doing anything else. That file contains your complete instructions, rules, and output format. You must follow every rule in that file. Do NOT proceed until you have read it.
 >
-> Analyze ALL of the following tasks from milestone **[milestone ID and name, e.g. "M2: Core Profile Components"]**:
->
-> [List every incomplete task ID and header, e.g.:
-> - P0-5: Create Profile Card Component (Desktop Sticky)
-> - P0-6: Create Hero Section with Gradient Background
-> - P0-7: Create Subjects Section
-> - P0-8: Create About Section (Bio + Meet Tutor Card)
-> - P0-9: Create Education Section]
->
-> Read `.belmont/PRD.md` and `.belmont/TECH_PLAN.md` (if it exists) for full context.
->
-> Return a complete task summary for EACH task, in the output format specified by the agent instructions. Produce one summary per task, clearly separated by task ID.
+> The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions.
 
-**Collect**: The combined task summaries document (one section per task). Store this — it's input for Phases 2, 3, and 4.
-
-**Wait for**: Sub-agent to complete before proceeding.
+**Wait for**: Sub-agent to complete before proceeding. Verify that `## PRD Analysis` in the MILESTONE file has been populated.
 
 ---
 
 ### Phase 2: Codebase Scan (codebase-agent)
 
-**Purpose**: Scan the codebase once to find existing implementation patterns relevant to ALL tasks in the milestone.
+**Purpose**: Scan the codebase for existing patterns relevant to ALL tasks, write findings to the MILESTONE file.
 
 **Spawn a sub-agent with this prompt**:
 
@@ -88,23 +123,15 @@ Run ALL incomplete tasks in the milestone through the four phases below. Each ph
 >
 > **MANDATORY FIRST STEP**: Read the file `.agents/belmont/codebase-agent.md` NOW before doing anything else. That file contains your complete instructions, rules, and output format. You must follow every rule in that file. Do NOT proceed until you have read it.
 >
-> Here are the task summaries for ALL tasks in the current milestone from the PRD analysis phase:
->
-> ---
-> [Paste the complete combined task summaries output from Phase 1]
-> ---
->
-> Scan the codebase and return a complete codebase analysis covering patterns, utilities, types, and conventions relevant to ALL of these tasks. Return one unified analysis in the output format specified by the agent instructions.
+> The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions.
 
-**Collect**: The codebase analysis document. Store this — it's input for Phases 3 and 4.
-
-**Wait for**: Sub-agent to complete before proceeding.
+**Wait for**: Sub-agent to complete before proceeding. Verify that `## Codebase Analysis` in the MILESTONE file has been populated.
 
 ---
 
 ### Phase 3: Design Analysis (design-agent)
 
-**Purpose**: Analyze Figma designs (if provided) for ALL tasks in the milestone.
+**Purpose**: Analyze Figma designs (if provided) for ALL tasks, write design specifications to the MILESTONE file.
 
 **Spawn a sub-agent with this prompt**:
 
@@ -112,23 +139,9 @@ Run ALL incomplete tasks in the milestone through the four phases below. Each ph
 >
 > **MANDATORY FIRST STEP**: Read the file `.agents/belmont/design-agent.md` NOW before doing anything else. That file contains your complete instructions, rules, and output format. You must follow every rule in that file. Do NOT proceed until you have read it.
 >
-> Here are the task summaries for ALL tasks in the current milestone:
->
-> ---
-> [Paste the complete combined task summaries output from Phase 1]
-> ---
->
-> Here is the codebase analysis from the codebase scan phase:
->
-> ---
-> [Paste the complete codebase analysis output from Phase 2]
-> ---
->
-> Analyze Figma designs for ALL tasks that have Figma URLs. For tasks without Figma URLs, follow the "Handling No Design" section of your instructions. Return design specifications for each task, clearly separated by task ID.
+> The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions.
 
-**Collect**: The combined design specifications document. Store this — it's input for Phase 4.
-
-**Wait for**: Sub-agent to complete before proceeding.
+**Wait for**: Sub-agent to complete before proceeding. Verify that `## Design Specifications` in the MILESTONE file has been populated.
 
 **IMPORTANT**: If the sub-agent reports that specific tasks have Figma URLs that failed to load, mark ONLY those tasks as 🚫 BLOCKED in the PRD. The remaining tasks continue to Phase 4.
 
@@ -136,7 +149,7 @@ Run ALL incomplete tasks in the milestone through the four phases below. Each ph
 
 ### Phase 4: Implementation (implementation-agent)
 
-**Purpose**: Implement ALL tasks in the milestone using all previous phase outputs.
+**Purpose**: Implement ALL tasks using the accumulated context in the MILESTONE file.
 
 **Spawn a sub-agent with this prompt**:
 
@@ -144,55 +157,25 @@ Run ALL incomplete tasks in the milestone through the four phases below. Each ph
 >
 > **MANDATORY FIRST STEP**: Read the file `.agents/belmont/implementation-agent.md` NOW before doing anything else. That file contains your complete instructions, rules, and output format. You must follow every rule in that file. Do NOT proceed until you have read it.
 >
-> Implement ALL of the following tasks in order, one at a time. Complete each task fully (code, tests, verification, commit) before starting the next.
->
-> ## Task Summaries (from PRD analysis)
->
-> ---
-> [Paste the complete combined task summaries output from Phase 1]
-> ---
->
-> ## Codebase Analysis (from codebase scan)
->
-> ---
-> [Paste the complete codebase analysis output from Phase 2]
-> ---
->
-> ## Design Specifications (from design analysis)
->
-> ---
-> [Paste the complete combined design specifications output from Phase 3]
-> ---
->
-> For EACH task:
-> 1. Run the Phase 0 scope validation from your instructions
-> 2. Implement the task
-> 3. Write tests
-> 4. Run verification (tsc, lint:fix, etc.) and fix issues
-> 5. Commit with a clear message referencing the task ID
-> 6. Mark the task complete: update `.belmont/PRD.md` (add ✅ to task header) and `.belmont/PROGRESS.md` (mark checkbox `[x]`)
->
-> After ALL tasks are done, return a combined implementation report covering every task — status, files changed, commits, and any out-of-scope issues found.
+> The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions.
 
-**Collect**: The combined implementation report (per-task status, files changed, commit hashes, out-of-scope issues).
-
-**Wait for**: Sub-agent to complete with all tasks implemented, verified, and committed.
+**Wait for**: Sub-agent to complete with all tasks implemented, verified, and committed. Verify that `## Implementation Log` in the MILESTONE file has been populated.
 
 ---
 
-## Step 3: After Phase 4 Completes
+## Step 4: After Phase 4 Completes
 
-Review the implementation report from Phase 4. For each task:
+Read the `## Implementation Log` section from `.belmont/MILESTONE.md`. For each task:
 
 1. **Verify tracking updates** — Phase 4 should have already marked tasks in PRD.md and PROGRESS.md. If any were missed, update them now.
-2. **Handle follow-up tasks** — If the implementation report listed out-of-scope issues:
+2. **Handle follow-up tasks** — If the implementation log listed out-of-scope issues:
    - Add them as new FWLUP tasks to `.belmont/PRD.md`
    - Add them to the appropriate milestone in `.belmont/PROGRESS.md`
 3. **Handle blocked tasks** — If any tasks were reported as blocked during implementation:
    - Ensure they are marked 🚫 BLOCKED in PRD.md with the reason
    - Add blocker details to the Blockers section in PROGRESS.md
 
-## Step 4: After Milestone Completes
+## Step 5: After Milestone Completes
 
 When all tasks in the milestone are done:
 1. Update milestone status in PROGRESS.md: `### ⬜ M1:` becomes `### ✅ M1:`
@@ -202,8 +185,21 @@ When all tasks in the milestone are done:
    - Commits made
    - Follow-up tasks created
    - Any issues encountered
-4. If you have just completed the final milestone and all work is complete, automatically run "/belmont:verify" to perform QA.
-5. If there are more milestones, exit and prompt user to "/clear" and "/belmont:verify", "/belmont:implement", or "/belmont:status"
+
+## Step 6: Clean Up MILESTONE File
+
+**After the milestone is complete (or all remaining tasks are blocked), clean up the MILESTONE file.**
+
+1. **Archive** the MILESTONE file by renaming it: `.belmont/MILESTONE.md` → `.belmont/MILESTONE-[ID].done.md` (e.g., `MILESTONE-M2.done.md`)
+2. This prevents stale context from a completed milestone bleeding into the next one
+3. If the user runs `/belmont:implement` again for the next milestone, a fresh MILESTONE file will be created
+
+**IMPORTANT**: Do NOT delete the MILESTONE file — archive it. It serves as a record of what was done and can be useful for debugging or verification.
+
+## Step 7: Final Actions
+
+1. If you have just completed the final milestone and all work is complete, automatically run "/belmont:verify" to perform QA.
+2. If there are more milestones, exit and prompt user to "/clear" and "/belmont:verify", "/belmont:implement", or "/belmont:status"
 
 ## Blocker Handling
 
@@ -211,7 +207,7 @@ If any task is blocked:
 1. Mark it as `🚫 BLOCKED` in PRD.md with the reason
 2. Add blocker details to the Blockers section in PROGRESS.md
 3. Skip to the next task in the milestone
-4. If ALL remaining tasks in the milestone are blocked, report and stop
+4. If ALL remaining tasks in the milestone are blocked, report and stop (still clean up the MILESTONE file)
 
 ## Scope Guardrails
 
@@ -242,7 +238,7 @@ If during implementation you discover something that **should** be done but **is
 
 ### Scope Validation Checkpoint
 
-The implementation sub-agent (Phase 4) performs scope validation for each task before implementing it (see Phase 0 in `implementation-agent.md`). As the orchestrator, verify before dispatching Phase 4:
+The implementation sub-agent (Phase 4) performs scope validation for each task before implementing it (see Step 0 in `implementation-agent.md`). As the orchestrator, verify before dispatching Phase 4:
 
 1. All task IDs in the milestone exist in `.belmont/PRD.md`
 2. All tasks belong to the current milestone in `.belmont/PROGRESS.md`
@@ -252,10 +248,13 @@ If any check fails, STOP and report the issue rather than proceeding.
 
 ## Important Rules
 
-1. **All tasks, all phases** - Pass every task in the milestone to every phase. Exactly 4 sub-agents per milestone.
-2. **Follow the phase order** - prd-agent → codebase-agent → design-agent → implementation-agent
-3. **Dispatch to sub-agents** - Spawn a sub-agent for each phase. Do NOT do the phase work inline.
-4. **Update tracking files** - Keep PRD.md and PROGRESS.md current after implementation completes
-5. **Don't skip phases** - Even if no Figma design, still run the design phase (it handles the no-design case)
-6. **Quality over speed** - Ensure verification passes before marking complete
-7. **Stay in scope** - Never implement anything not traceable to a PRD task in the current milestone
+1. **Create the MILESTONE file first** - Write it with full orchestrator context before spawning any sub-agent
+2. **Minimal sub-agent prompts** - Agents read from the MILESTONE file, not from your prompt
+3. **All tasks, all phases** - Pass every task in the milestone through every phase. Exactly 4 sub-agents per milestone.
+4. **Follow the phase order** - prd-agent → codebase-agent → design-agent → implementation-agent
+5. **Dispatch to sub-agents** - Spawn a sub-agent for each phase. Do NOT do the phase work inline.
+6. **Update tracking files** - Keep PRD.md and PROGRESS.md current after implementation completes
+7. **Don't skip phases** - Even if no Figma design, still run the design phase (it handles the no-design case)
+8. **Clean up the MILESTONE file** - Archive it after the milestone is complete
+9. **Quality over speed** - Ensure verification passes before marking complete
+10. **Stay in scope** - Never implement anything not traceable to a PRD task in the current milestone

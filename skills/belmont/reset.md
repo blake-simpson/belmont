@@ -20,6 +20,8 @@ Read the following files (if they exist) and collect a summary:
 - `.belmont/PRD.md` — Extract the feature name (from `# PRD: ...` heading), count of tasks, count of completed tasks (✅)
 - `.belmont/PROGRESS.md` — Extract the status line, count of milestones, count of completed milestones (✅)
 - `.belmont/TECH_PLAN.md` — Check if it exists and has content
+- `.belmont/MILESTONE.md` — Check if an active MILESTONE file exists
+- `.belmont/MILESTONE-*.done.md` — Check for any archived MILESTONE files
 
 If `.belmont/` does not exist or contains only empty templates, tell the user there is nothing to reset and stop.
 
@@ -36,6 +38,8 @@ This will reset ALL belmont planning files to blank templates:
   PRD.md        [feature name] — [X] tasks ([Y] complete)
   PROGRESS.md   [status] — [N] milestones ([M] complete)
   TECH_PLAN.md  [Exists / Does not exist]
+  MILESTONE.md  [Active / Does not exist]
+  Archives      [N archived MILESTONE files / None]
 
 ⚠️  This cannot be undone.
 
@@ -91,6 +95,10 @@ Run the /belmont:product-plan skill to create a plan for your feature.
 
 **`.belmont/TECH_PLAN.md`** — delete the file if it exists.
 
+**`.belmont/MILESTONE.md`** — delete the file if it exists.
+
+**`.belmont/MILESTONE-*.done.md`** — delete all archived MILESTONE files if any exist.
+
 After clearing, report:
 
 ```
@@ -99,6 +107,8 @@ After clearing, report:
   PRD.md        → reset to template
   PROGRESS.md   → reset to template
   TECH_PLAN.md  → [deleted / did not exist]
+  MILESTONE.md  → [deleted / did not exist]
+  Archives      → [N deleted / none existed]
 
 Run /belmont:product-plan to start a new plan.
 ```
