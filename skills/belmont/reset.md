@@ -78,10 +78,6 @@ Run the /belmont:product-plan skill to create a plan for your feature.
 - [ ] Task 1
 - [ ] Task 2
 
-## Definition of Done Checklist
-- [ ] DoD Item 1
-- [ ] DoD Item 2
-
 ## Session History
 | Session | Date/Time           | Context Used | Milestones Completed |
 |---------|------|--------------|---------------------|

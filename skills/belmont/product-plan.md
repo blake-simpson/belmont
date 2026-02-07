@@ -141,10 +141,6 @@ Write `.belmont/PROGRESS.md` with this structure:
 ### ⬜ M2: [Milestone Name]
 - [ ] Task 1
 
-## Definition of Done Checklist
-- [ ] DoD Item 1
-- [ ] DoD Item 2
-
 ## Session History
 | Session | Date/Time           | Context Used | Milestones Completed |
 |---------|---------------------|-----------------|----------------------|

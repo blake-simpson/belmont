@@ -383,10 +383,6 @@ if [ ! -f "$BELMONT_STATE/PROGRESS.md" ]; then
 - [ ] Task 1
 - [ ] Task 2
 
-## Definition of Done Checklist
-- [ ] DoD Item 1
-- [ ] DoD Item 2
-
 ## Session History
 | Session | Date/Time           | Context Used | Milestones Completed |
 |---------|------|--------------|---------------------|
