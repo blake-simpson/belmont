@@ -248,3 +248,4 @@ Skip this step if you used Approach B or C.
 5. **Update tracking files** - Add follow-up tasks to both PRD.md and PROGRESS.md
 
 Once done, prompt the user to "/clear" and then "/belmont:status", "/belmont:next", or "/belmont:implement"
+   - If you are Codex, instead prompt: "/new" and then "belmont:status", "belmont:next", or "belmont:implement"

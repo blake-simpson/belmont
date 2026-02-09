@@ -52,7 +52,7 @@ cd /path/to/belmont
 
 That builds the CLI (if needed) and runs `belmont install --source /path/to/belmont` for the current project.
 
-The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then links or copies them into each tool's native directory. For Codex, it also installs a `SKILLS.md` file at the project root. Agents are installed to `.agents/belmont/`.
+The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then links or copies them into each tool's native directory. For Codex, it also adds a small Belmont section in `AGENTS.md` so `belmont:<skill>` requests resolve to local files. Agents are installed to `.agents/belmont/`.
 
 Then use the skills in your AI tool of choice. For example, in Claude Code:
 
@@ -217,11 +217,12 @@ The installer will:
 2. **Ask which to install for** -- all detected, a specific one, or skip
 3. **Sync agents** to `.agents/belmont/` (shared, tool-agnostic)
 4. **Sync skills** to `.agents/skills/belmont/` (canonical location, shared across tools)
-5. **Install Codex `SKILLS.md`** at project root (Codex only)
-6. **Link or copy** skill files into each selected tool's native directory
-7. **Clean stale files** -- if a skill was renamed or removed in source, the old file is deleted from the target
-8. **Create `.belmont/`** directory with PRD.md and PROGRESS.md templates (if they don't exist)
-9. **Offer to update `.gitignore`** for the `.belmont/` state directory
+5. **For Codex installs, update `AGENTS.md`** with Belmont skill-routing guidance (idempotent)
+6. **For Codex installs, remove legacy Belmont `SKILLS.md`** at project root (if present)
+7. **Link or copy** skill files into each selected tool's native directory
+8. **Clean stale files** -- if a skill was renamed or removed in source, the old file is deleted from the target
+9. **Create `.belmont/`** directory with PRD.md and PROGRESS.md templates (if they don't exist)
+10. **Offer to update `.gitignore`** for the `.belmont/` state directory
 
 Example output:
 
@@ -261,8 +262,8 @@ Installing skills to .agents/skills/belmont/...
   + status.md
   + reset.md
 
-Installing Codex SKILLS.md to project root...
-  + SKILLS.md
+Updating AGENTS.md for Codex skill routing...
+  + AGENTS.md Belmont Codex skill routing section
 
 Linking Claude Code...
   + .claude/agents/belmont -> ../../.agents/belmont
@@ -332,7 +333,7 @@ Each AI tool is wired to `.agents/skills/belmont/` in the way it expects. Some t
 | Tool               | Symlink                       | Target                          | How to Use                                                            |
 |--------------------|-------------------------------|---------------------------------|-----------------------------------------------------------------------|
 | **Claude Code**    | `.claude/agents/belmont`<br/>`.claude/commands/belmont` | `agents -> .agents/belmont` (symlink)<br/>`commands` copied from `.agents/skills/belmont` | Slash commands: `/belmont:product-plan`, `/belmont:implement`, etc. |
-| **Codex**          | `.codex/belmont`              | Copied from `.agents/skills/belmont` | `SKILLS.md` at project root points to belmont files                   |
+| **Codex**          | `.codex/belmont`              | Copied from `.agents/skills/belmont` | `AGENTS.md` includes Belmont routing for `belmont:<skill>` prompts     |
 | **Cursor**         | `.cursor/rules/belmont/*.mdc` | `→ .agents/skills/belmont/*.md` | Toggle rules in Settings > Rules, or reference in Composer/Agent mode |
 | **Windsurf**       | `.windsurf/rules/belmont`     | Symlink to `.agents/skills/belmont` | Reference rules in Cascade                                            |
 | **Gemini**         | `.gemini/rules/belmont`       | Symlink to `.agents/skills/belmont` | Reference rules in Gemini                                             |
@@ -357,12 +358,12 @@ Skills become native slash commands:
 
 ### Codex Usage
 
-Skills are copied into `.codex/belmont/`, and a `SKILLS.md` index is added at the project root. To use them:
+Skills are copied into `.codex/belmont/`, and Belmont adds/updates a small section in `AGENTS.md` so Codex can resolve local Belmont skills. To use them:
 
 1. Open Codex in your project directory
-2. Codex will read `SKILLS.md` and load the skill index
-3. Reference the skill files when prompting (e.g., *"Follow the belmont implement workflow"*)
-4. Or point Codex at the skill file directly when starting a session
+2. Prompt with a skill reference like `belmont:implement` or "Use the belmont:implement skill"
+3. Codex should resolve `.agents/skills/belmont/implement.md` (fallback `.codex/belmont/implement.md`)
+4. You can still point Codex at the skill file directly when starting a session
 
 ### Cursor Usage
 
@@ -663,8 +664,6 @@ belmont/
 ├── cmd/
 │   └── belmont/
 │       └── main.go          # Go CLI entrypoint
-├── codex/
-│   └── SKILLS.md            # Codex skill index (installed to project root)
 ├── go.mod
 ├── skills/
 │   └── belmont/
@@ -721,7 +720,7 @@ your-project/
 │       └── belmont/              (copied from .agents/skills/belmont)
 ├── .codex/                      # Codex (if selected)
 │   └── belmont/                  (copied from .agents/skills/belmont)
-├── SKILLS.md                    # Codex skill index (installed if selected)
+├── AGENTS.md                    # Includes Belmont Codex skill-routing section (if selected)
 ├── .cursor/                     # Cursor (if selected)
 │   └── rules/
 │       └── belmont/

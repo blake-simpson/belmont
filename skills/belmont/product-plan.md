@@ -45,7 +45,7 @@ Before planning, read `.belmont/PRD.md` and `.belmont/PROGRESS.md`.
 
 ## Process
 
-1. Load relevant skills for the domain (frontend-design, vercel-react-best-practices, security, etc.)
+1. Load relevant skills for the domain (figma:*, frontend-design, vercel-react-best-practices, security, etc.)
 2. Ask the user what they want to build
 3. Use the AskUserQuestion tool to ask clarifying questions (ONE AT A TIME) until fully understood
 4. Consider edge cases, dependencies, blockers
@@ -56,7 +56,8 @@ Before planning, read `.belmont/PRD.md` and `.belmont/PROGRESS.md`.
 9. Write the finalized PRD.md and PROGRESS.md (in UPDATE mode, only add/modify — never replace)
 10. Exit - do NOT start implementation
 
-Final: Prompt uset to "/clear" and "/belmont:tech-plan"
+Final: Prompt user to "/clear" and then "/belmont:tech-plan"
+   - If you are Codex, instead prompt: "/new" and then "belmont:tech-plan"
 
 ## Important Considerations
 

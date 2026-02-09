@@ -140,6 +140,7 @@ Files:     [count] changed
 If the task turned out to be larger than expected or the implementation agent reported issues, note them and suggest the user run `/belmont:implement` for remaining work or `/belmont:verify` to check quality.
 
 Prompt the user to "/clear" and then "/belmont:status", "/belmont:next", or "/belmont:verify".
+   - If you are Codex, instead prompt: "/new" and then "belmont:status", "belmont:next", or "belmont:verify"
 
 ## Important Rules
 

@@ -840,16 +840,20 @@ func runInstall(args []string) error {
 	fmt.Println("")
 
 	if containsTool(selectedTools, "codex") {
-		sourceSkill := filepath.Join(sourceRoot, "codex", "SKILLS.md")
-		if fileExists(sourceSkill) {
-			dest := filepath.Join(projectRoot, "SKILLS.md")
-			if err := copyFile(sourceSkill, dest); err != nil {
-				return err
-			}
-			fmt.Println("Installing Codex SKILLS.md to project root...")
-			fmt.Println("  + SKILLS.md")
-			fmt.Println("")
+		fmt.Println("Updating AGENTS.md for Codex skill routing...")
+		if changed, err := ensureCodexAgentsGuidance(projectRoot); err != nil {
+			return err
+		} else if changed {
+			fmt.Println("  + AGENTS.md Belmont Codex skill routing section")
+		} else {
+			fmt.Println("  = AGENTS.md Belmont Codex skill routing section (unchanged)")
 		}
+		if removed, err := removeLegacyCodexSkillsIndex(projectRoot); err != nil {
+			return err
+		} else if removed {
+			fmt.Println("  - SKILLS.md (removed legacy Belmont Codex index)")
+		}
+		fmt.Println("")
 	}
 
 	for _, tool := range selectedTools {
@@ -894,7 +898,7 @@ func runInstall(args []string) error {
 				fmt.Println("    Use: /belmont:product-plan, /belmont:tech-plan, /belmont:implement, /belmont:next, /belmont:verify, /belmont:status")
 			case "codex":
 				fmt.Println("  Codex        .codex/belmont (copied from .agents/skills/belmont)")
-				fmt.Println("    Use: SKILLS.md at project root points to belmont files")
+				fmt.Println("    Use: AGENTS.md includes Belmont skill routing for belmont:<skill> prompts")
 			case "cursor":
 				fmt.Println("  Cursor       .cursor/rules/belmont/*.mdc -> .agents/skills/belmont/*.md")
 				fmt.Println("    Use: Reference belmont rules in Composer/Agent, or toggle in Settings > Rules")
@@ -1609,6 +1613,92 @@ func ensureStateFiles(projectRoot string) error {
 		fmt.Println("  Exists: .belmont/PROGRESS.md (keeping)")
 	}
 	return nil
+}
+
+const codexAgentsGuidanceStart = "<!-- belmont:codex-skill-routing:start -->"
+const codexAgentsGuidanceEnd = "<!-- belmont:codex-skill-routing:end -->"
+
+func ensureCodexAgentsGuidance(projectRoot string) (bool, error) {
+	path := filepath.Join(projectRoot, "AGENTS.md")
+	current := ""
+	if fileExists(path) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return false, err
+		}
+		current = string(data)
+	}
+
+	section := codexAgentsGuidanceSection()
+	updated, changed := upsertMarkedSection(current, codexAgentsGuidanceStart, codexAgentsGuidanceEnd, section)
+	if !changed {
+		return false, nil
+	}
+
+	if strings.TrimSpace(updated) == "" {
+		updated = "# AGENTS\n\n" + strings.TrimSpace(section) + "\n"
+	}
+	return true, os.WriteFile(path, []byte(updated), 0o644)
+}
+
+func codexAgentsGuidanceSection() string {
+	lines := []string{
+		codexAgentsGuidanceStart,
+		"## Belmont Skill Routing (Codex)",
+		"",
+		"- Belmont skills are local markdown files in `.agents/skills/belmont/` (and mirrored in `.codex/belmont/`).",
+		"- If the user says `belmont:<skill>` or \"Use the belmont:<skill> skill\", treat it as a skill reference, not a shell command.",
+		"- Load `.agents/skills/belmont/<skill>.md` first (fallback to `.codex/belmont/<skill>.md`) and follow that workflow.",
+		"- Known Belmont skills: `product-plan`, `tech-plan`, `implement`, `next`, `verify`, `status`, `reset`.",
+		"- If a requested skill file is missing, list available files in those directories and continue with the closest matching Belmont skill.",
+		codexAgentsGuidanceEnd,
+	}
+	return strings.Join(lines, "\n")
+}
+
+func upsertMarkedSection(content, startMarker, endMarker, section string) (string, bool) {
+	newSection := strings.TrimSpace(section)
+	if strings.TrimSpace(content) == "" {
+		return newSection + "\n", true
+	}
+
+	start := strings.Index(content, startMarker)
+	end := strings.Index(content, endMarker)
+	if start >= 0 && end > start {
+		end += len(endMarker)
+		currentSection := strings.TrimSpace(content[start:end])
+		if currentSection == newSection {
+			return content, false
+		}
+		replacement := newSection
+		if !strings.HasSuffix(replacement, "\n") {
+			replacement += "\n"
+		}
+		updated := content[:start] + replacement + content[end:]
+		return updated, updated != content
+	}
+
+	trimmed := strings.TrimRight(content, "\n")
+	return trimmed + "\n\n" + newSection + "\n", true
+}
+
+func removeLegacyCodexSkillsIndex(projectRoot string) (bool, error) {
+	path := filepath.Join(projectRoot, "SKILLS.md")
+	if !fileExists(path) {
+		return false, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	content := string(data)
+	if !strings.Contains(content, "name: belmont-skills-index") {
+		return false, nil
+	}
+	if err := os.Remove(path); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func maybeUpdateGitignore(projectRoot string, noPrompt bool) error {

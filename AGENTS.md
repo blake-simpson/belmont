@@ -39,15 +39,16 @@ Belmont is an agent-agnostic AI coding toolkit. It installs markdown-based **ski
 - `skills/belmont/` — Skill markdown files (product-plan, tech-plan, implement, next, verify, status, reset). These are the source-of-truth copied/linked into target projects.
 - `agents/belmont/` — Agent instruction markdown files (codebase-agent, design-agent, implementation-agent, verification-agent, core-review-agent). Copied into target projects.
 - `bin/install.sh` / `bin/install.ps1` — Bootstrap scripts that build the Go CLI and run `belmont install`.
-- `codex/SKILLS.md` — Codex-specific skill index, installed to project root when Codex is selected.
 
 ### How the installer works
 
 `belmont install` syncs skills and agents from this repo into a target project:
 1. Copies agents to `.agents/belmont/` and skills to `.agents/skills/belmont/`
 2. Wires each detected AI tool to those canonical locations (symlinks for Cursor/Windsurf/Gemini/Copilot, copies for Claude Code/Codex)
-3. Creates `.belmont/` state directory with PRD.md and PROGRESS.md templates
-4. Cleans stale files — if a skill was renamed/removed in source, the old file is deleted from the target
+3. For Codex installs, adds/updates a marked section in `AGENTS.md` that routes `belmont:<skill>` requests to local files
+4. Removes legacy Belmont-managed root `SKILLS.md` (if present from older installs)
+5. Creates `.belmont/` state directory with PRD.md and PROGRESS.md templates
+6. Cleans stale files — if a skill was renamed/removed in source, the old file is deleted from the target
 
 Source resolution order: `--source` flag > `BELMONT_SOURCE` env > `~/.config/belmont/config.json` > walk up from CLI binary location.
 
