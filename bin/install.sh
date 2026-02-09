@@ -339,7 +339,22 @@ echo "Installing skills to .agents/skills/belmont/..."
 sync_directory "$BELMONT_DIR/skills/belmont" ".agents/skills/belmont"
 echo ""
 
-# --- Step 3: Set up tool integrations (symlinks) ---
+# --- Step 3: Install Codex SKILLS.md if Codex selected ---
+for tool in "${SELECTED_TOOLS[@]}"; do
+    if [ "$tool" = "codex" ]; then
+        if [ -f "$BELMONT_DIR/codex/SKILLS.md" ]; then
+            echo "Installing Codex SKILLS.md to project root..."
+            cp "$BELMONT_DIR/codex/SKILLS.md" "SKILLS.md"
+            echo "  + SKILLS.md"
+        else
+            echo "  ! Missing $BELMONT_DIR/codex/SKILLS.md (skipping)"
+        fi
+        echo ""
+        break
+    fi
+done
+
+# --- Step 4: Set up tool integrations (symlinks) ---
 for tool in "${SELECTED_TOOLS[@]}"; do
     setup_tool "$tool"
     echo ""
@@ -447,7 +462,7 @@ if [ ${#SELECTED_TOOLS[@]} -gt 0 ]; then
                 ;;
             codex)
                 echo "  Codex        .codex/belmont -> .agents/skills/belmont"
-                echo "    Use: Reference belmont files in Codex"
+                echo "    Use: SKILLS.md at project root points to belmont files"
                 ;;
             cursor)
                 echo "  Cursor       .cursor/rules/belmont/*.mdc -> .agents/skills/belmont/*.md"

@@ -42,7 +42,7 @@ cd ~/your-project
 belmont-install
 ```
 
-The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then creates symlinks from each tool's native directory. Agents are installed to `.agents/belmont/`.
+The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then creates symlinks from each tool's native directory. For Codex, it also installs a `SKILLS.md` file at the project root. Agents are installed to `.agents/belmont/`.
 
 Then use the skills in your AI tool of choice. For example, in Claude Code:
 
@@ -192,10 +192,11 @@ The installer will:
 2. **Ask which to install for** -- all detected, a specific one, or skip
 3. **Sync agents** to `.agents/belmont/` (shared, tool-agnostic)
 4. **Sync skills** to `.agents/skills/belmont/` (canonical location, shared across tools)
-5. **Create symlinks** from each selected tool's native directory into `.agents/skills/belmont/`
-6. **Clean stale files** -- if a skill was renamed or removed in source, the old file is deleted from the target
-7. **Create `.belmont/`** directory with PRD.md and PROGRESS.md templates (if they don't exist)
-8. **Offer to update `.gitignore`** for the `.belmont/` state directory
+5. **Install Codex `SKILLS.md`** at project root (Codex only)
+6. **Create symlinks** from each selected tool's native directory into `.agents/skills/belmont/`
+7. **Clean stale files** -- if a skill was renamed or removed in source, the old file is deleted from the target
+8. **Create `.belmont/`** directory with PRD.md and PROGRESS.md templates (if they don't exist)
+9. **Offer to update `.gitignore`** for the `.belmont/` state directory
 
 Example output:
 
@@ -235,6 +236,9 @@ Installing skills to .agents/skills/belmont/...
   + status.md
   + reset.md
 
+Installing Codex SKILLS.md to project root...
+  + SKILLS.md
+
 Linking Claude Code...
   + .claude/agents/belmont -> ../../.agents/skills/belmont
 
@@ -269,7 +273,7 @@ Each AI tool gets a **symlink** from its native directory into `.agents/skills/b
 | Tool               | Symlink                       | Target                          | How to Use                                                            |
 |--------------------|-------------------------------|---------------------------------|-----------------------------------------------------------------------|
 | **Claude Code**    | `.claude/agents/belmont`      | `→ .agents/skills/belmont`      | Slash commands: `/belmont:product-plan`, `/belmont:implement`, etc.   |
-| **Codex**          | `.codex/belmont`              | `→ .agents/skills/belmont`      | Reference files in Codex                                              |
+| **Codex**          | `.codex/belmont`              | `→ .agents/skills/belmont`      | `SKILLS.md` at project root points to belmont files                   |
 | **Cursor**         | `.cursor/rules/belmont/*.mdc` | `→ .agents/skills/belmont/*.md` | Toggle rules in Settings > Rules, or reference in Composer/Agent mode |
 | **Windsurf**       | `.windsurf/rules/belmont`     | `→ .agents/skills/belmont`      | Reference rules in Cascade                                            |
 | **Gemini**         | `.gemini/rules/belmont`       | `→ .agents/skills/belmont`      | Reference rules in Gemini                                             |
@@ -294,11 +298,12 @@ Skills become native slash commands:
 
 ### Codex Usage
 
-Skills are installed as a symlink. To use them:
+Skills are installed as a symlink, and a `SKILLS.md` index is added at the project root. To use them:
 
 1. Open Codex in your project directory
-2. Reference the skill files when prompting (e.g., *"Follow the belmont implement workflow"*)
-3. Or point Codex at the skill file directly when starting a session
+2. Codex will read `SKILLS.md` and load the skill index
+3. Reference the skill files when prompting (e.g., *"Follow the belmont implement workflow"*)
+4. Or point Codex at the skill file directly when starting a session
 
 ### Cursor Usage
 
@@ -596,6 +601,8 @@ Other:        Load skills/belmont/reset.md as context
 
 ```
 belmont/
+├── codex/
+│   └── SKILLS.md            # Codex skill index (installed to project root)
 ├── skills/
 │   └── belmont/
 │       ├── product-plan.md      # Planning skill
@@ -648,6 +655,7 @@ your-project/
 │       └── belmont -> ../../.agents/skills/belmont   (symlink)
 ├── .codex/                      # Codex (if selected)
 │   └── belmont -> ../.agents/skills/belmont   (symlink)
+├── SKILLS.md                    # Codex skill index (installed if selected)
 ├── .cursor/                     # Cursor (if selected)
 │   └── rules/
 │       └── belmont/
