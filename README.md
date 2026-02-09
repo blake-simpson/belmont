@@ -16,6 +16,7 @@ Strong guardrails are in place to keep the agent focused and on task.
 
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
+- [Implementation Pipeline](#implementation-pipeline)
 - [Agent Teams Support](#agent-teams-support)
 - [Installation](#installation)
 - [Supported Tools](#supported-tools)
@@ -66,15 +67,15 @@ Belmont breaks coding work into **phases**, each driven by a specialized agent. 
                                                 │
                          ┌──────────────────────┤
                          ▼                      ▼
-                   ┌───────────┐         ┌────────────┐
-                   │  Verify   │         │  Status    │
-                   │ (parallel)│         │ (read-only)│
-                   └───────────┘         └────────────┘
-                         │
-                         ▼
-                   ┌───────────┐
-                   │  Next     │  (single task, lightweight)
-                   └───────────┘
+                    ┌───────────┐         ┌────────────┐
+                    │  Verify   │         │  Status    │
+                    │ (parallel)│         │ (read-only)│
+                    └───────────┘         └────────────┘
+                          │
+                          ▼
+                    ┌───────────┐
+                    │  Next     │  (single task, lightweight)
+                    └───────────┘
 ```
 
 ### MILESTONE File Architecture
@@ -82,105 +83,79 @@ Belmont breaks coding work into **phases**, each driven by a specialized agent. 
 Belmont uses a **MILESTONE file** (`.belmont/MILESTONE.md`) as the shared context between agents. Instead of the orchestrator passing large outputs between agents in their prompts, each agent reads from and writes to this single file. This dramatically reduces token usage and keeps each agent focused.
 
 ```
-Orchestrator (Team Lead)
+Orchestrator
     │
-    ├─ 1. Creates MILESTONE.md with task list & PRD context
+    ├─ 1. Creates MILESTONE.md with task list, PRD context & TECH_PLAN context
     │
-    ├─ 2-4. Research phases (sequential by default, parallel with agent teams):
-    │     ├─ prd-agent ──────── reads MILESTONE.md + TECH_PLAN ── writes PRD Analysis section
-    │     ├─ codebase-agent ─── reads MILESTONE.md + TECH_PLAN ── writes Codebase Analysis section
-    │     └─ design-agent ───── reads MILESTONE.md + TECH_PLAN ── writes Design Specifications section
+    ├─ 2. Research phases (parallel — both run simultaneously):
+    │     ├─ codebase-agent ─── reads MILESTONE.md + codebase ── writes Codebase Analysis section
+    │     └─ design-agent ───── reads MILESTONE.md + Figma ──── writes Design Specifications section
     │
-    ├─ 5. Spawns implementation-agent reads MILESTONE.md + TECH_PLAN ── writes code + Implementation Log
+    ├─ 3. Spawns implementation-agent ── reads MILESTONE.md ── writes code + Implementation Log
     │
-    └─ 6. Archives MILESTONE.md → MILESTONE-M2.done.md
+    └─ 4. Archives MILESTONE.md → MILESTONE-M2.done.md
 ```
 
-Each agent receives a **minimal prompt** (just identity + "read the MILESTONE file") instead of having the orchestrator paste all prior outputs into the prompt. The orchestrator's context stays flat — it never accumulates the massive outputs from each phase.
+Each agent reads **only the MILESTONE file** — the orchestrator extracts all relevant PRD and TECH_PLAN context into it upfront. Agents receive a minimal prompt (just identity + "read the MILESTONE file"). The orchestrator's context stays flat — it never accumulates the massive outputs from each phase.
 
 ### Implementation Pipeline
 
-When you run the implement skill, the orchestrator creates a MILESTONE file, then dispatches 4 phases sequentially via the `Task` tool. With [agent teams](#agent-teams-support) enabled, phases 1–3 can run in parallel for faster completion:
+When you run the implement skill, the orchestrator creates a MILESTONE file, then dispatches 3 phases. Phases 1 and 2 run in parallel, Phase 3 runs after both complete:
 
-| Phase              | Agent                  | Model  | Reads                              | Writes to MILESTONE                  |
-|--------------------|------------------------|--------|------------------------------------|---------------------------------|
-| 1. Task Analysis   | `prd-agent`            | Sonnet | MILESTONE + PRD + TECH_PLAN        | `## PRD Analysis`               |
-| 2. Codebase Scan   | `codebase-agent`       | Sonnet | MILESTONE + TECH_PLAN + codebase   | `## Codebase Analysis`          |
-| 3. Design Analysis | `design-agent`         | Sonnet | MILESTONE + TECH_PLAN + Figma      | `## Design Specifications`      |
-| 4. Implementation  | `implementation-agent` | Opus   | MILESTONE + TECH_PLAN              | Code, tests, `## Implementation Log` |
+| Phase              | Agent                  | Model  | Reads                | Writes to MILESTONE                  |
+|--------------------|------------------------|--------|----------------------|--------------------------------------|
+| 1. Codebase Scan   | `codebase-agent`       | Sonnet | MILESTONE + codebase | `## Codebase Analysis`               |
+| 2. Design Analysis | `design-agent`         | Sonnet | MILESTONE + Figma    | `## Design Specifications`           |
+| 3. Implementation  | `implementation-agent` | Opus   | MILESTONE (only)     | Code, tests, `## Implementation Log` |
 
 After implementation, the MILESTONE file is archived (renamed to `MILESTONE-[ID].done.md`) to prevent stale context from bleeding into the next milestone.
 
 ### Verification Pipeline
 
-When you run the verify skill, two agents run sequentially (or in parallel with [agent teams](#agent-teams-support)):
+When you run the verify skill, two agents run:
 
-| Agent                | Model  | What It Does                                                                           |
-|----------------------|--------|----------------------------------------------------------------------------------------|
-| `verification-agent` | Sonnet | Checks acceptance criteria, visual Figma comparison via Playwright headless, i18n keys |
+| Agent                | Model  | What It Does                                                                                        |
+|----------------------|--------|-----------------------------------------------------------------------------------------------------|
+| `verification-agent` | Sonnet | Checks acceptance criteria, visual Figma comparison via Playwright headless, i18n keys              |
 | `core-review-agent`  | Sonnet | Runs build and test commands (auto-detects package manager), reviews code quality and PRD alignment |
 
 Both agents read the PRD, TECH_PLAN, and archived MILESTONE files for full context. Any issues found become follow-up tasks added to the PRD and PROGRESS files.
 
 ---
 
-## Agent Teams Support
+## Implementation Pipeline
 
-By default, Belmont dispatches all phases as **sequential sub-agents** via the `Task` tool. This is the most reliable approach and works with every supported tool.
-
-If your environment supports **agent teams** (Claude Code's experimental multi-agent feature), Belmont's orchestrator skills will take advantage of them for parallel execution of independent phases. No changes to Belmont's configuration are needed — just enable agent teams in your tool and the orchestrator will use them when appropriate.
-
-### What Changes With Agent Teams
-
-| Skill | Default (sequential) | With Agent Teams |
-|-------|---------------------|-----------------|
-| **implement** | 4 phases run sequentially via `Task` tool | Research phases 1–3 run **in parallel** as teammates, then phase 4 runs after all three complete |
-| **verify** | 2 agents run sequentially via `Task` tool | 2 agents spawned as **parallel teammates** |
-| **next** | Single sub-agent (no change) | Single agent — no benefit from teams |
-
-### How It Works
-
-Research phases 1–3 are fully independent — they each read from the `## Orchestrator Context` section of the MILESTONE file and write to their own designated section (`## PRD Analysis`, `## Codebase Analysis`, `## Design Specifications`). This makes them safe to run in parallel with no conflicts. Phase 4 (implementation) always runs after all research phases complete.
+Research phases 1–2 (codebase scan + design analysis) are fully independent — they each read from the `## Orchestrator Context` section of the MILESTONE file and write to their own designated section (`## Codebase Analysis`, `## Design Specifications`). This makes them safe to run in parallel with no conflicts. Phase 3 (implementation) always runs after both research phases complete.
 
 ```
                         ┌──────────────────┐
                         │   Orchestrator   │
-                        │   (Team Lead)    │
                         └────────┬─────────┘
                                  │
-              ┌──────────────────┼──────────────────┐
-              ▼                  ▼                   ▼
-     ┌────────────────┐ ┌───────────────┐ ┌─────────────────┐
-     │  PRD Analyst   │ │   Codebase    │ │  Design Analyst │
-     │  (Teammate)    │ │   Analyst     │ │  (Teammate)     │
-     │                │ │  (Teammate)   │ │                 │
-     └────────┬───────┘ └───────┬───────┘ └────────┬────────┘
-              │                 │                   │
-              └─────── MILESTONE file ──────────────┘
-                        (shared context)
-                                │
-                                ▼
-                   ┌─────────────────────┐
-                   │  Implementation     │
-                   │  Agent (Sub-agent)  │
-                   └─────────────────────┘
+              ┌──────────────────┴───────────────────┐
+              ▼                                      ▼
+     ┌────────────────┐                    ┌─────────────────┐
+     │   Codebase     │                    │  Design Analyst │
+     │   Analyst      │                    │                 │
+     └────────┬───────┘                    └────────┬────────┘
+              │                                     │
+              └────────── MILESTONE file ───────────┘
+                          (shared context)
+                                 │
+                                 ▼
+                    ┌─────────────────────┐
+                    │  Implementation     │
+                    │  Agent (Sub-agent)  │
+                    └─────────────────────┘
 ```
 
-### Enabling Agent Teams
+---
 
-**Claude Code**: Agent teams are experimental. Enable by adding to your settings:
+## Agent Teams / Swarms Support
 
-```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
+By default, Belmont dispatches all phases as **sub-agents**. This is the most reliable approach and works with every supported tool.
 
-See the [Claude Code agent teams documentation](https://code.claude.com/docs/en/agent-teams) for details.
-
-**Other tools**: If your AI tool supports a multi-agent or swarm feature, the orchestrator prompts allow parallel execution of independent phases. If no such feature is available, the sequential sub-agent workflow is used.
+If your environment supports **agent teams** (e.g. Claude Code's multi-agent feature), Belmont's orchestrator skills will take advantage, if Claude thinks it would add value. If not it will use traditional sub-agents. No changes to Belmont's configuration are needed — just enable agent teams in your tool and the orchestrator will use them when appropriate.
 
 ---
 
@@ -245,7 +220,6 @@ Install skills for:
 Choice [a]: a
 
 Installing agents to .agents/belmont/...
-  + prd-agent.md
   + codebase-agent.md
   + design-agent.md
   + implementation-agent.md
@@ -259,9 +233,10 @@ Installing skills to .agents/skills/belmont/...
   + next.md
   + verify.md
   + status.md
+  + reset.md
 
 Linking Claude Code...
-  + .claude/commands/belmont -> ../../.agents/skills/belmont
+  + .claude/agents/belmont -> ../../.agents/skills/belmont
 
 Linking Codex...
   + .codex/belmont -> ../.agents/skills/belmont
@@ -273,6 +248,7 @@ Linking Cursor...
   + .cursor/rules/belmont/next.mdc -> ../../../.agents/skills/belmont/next.md
   + .cursor/rules/belmont/verify.mdc -> ../../../.agents/skills/belmont/verify.md
   + .cursor/rules/belmont/status.mdc -> ../../../.agents/skills/belmont/status.md
+  + .cursor/rules/belmont/reset.mdc -> ../../../.agents/skills/belmont/reset.md
 
   + .belmont/PRD.md
   + .belmont/PROGRESS.md
@@ -292,7 +268,7 @@ Each AI tool gets a **symlink** from its native directory into `.agents/skills/b
 
 | Tool               | Symlink                       | Target                          | How to Use                                                            |
 |--------------------|-------------------------------|---------------------------------|-----------------------------------------------------------------------|
-| **Claude Code**    | `.claude/commands/belmont`    | `→ .agents/skills/belmont`      | Slash commands: `/belmont:product-plan`, `/belmont:implement`, etc.   |
+| **Claude Code**    | `.claude/agents/belmont`      | `→ .agents/skills/belmont`      | Slash commands: `/belmont:product-plan`, `/belmont:implement`, etc.   |
 | **Codex**          | `.codex/belmont`              | `→ .agents/skills/belmont`      | Reference files in Codex                                              |
 | **Cursor**         | `.cursor/rules/belmont/*.mdc` | `→ .agents/skills/belmont/*.md` | Toggle rules in Settings > Rules, or reference in Composer/Agent mode |
 | **Windsurf**       | `.windsurf/rules/belmont`     | `→ .agents/skills/belmont`      | Reference rules in Cascade                                            |
@@ -329,7 +305,7 @@ Skills are installed as a symlink. To use them:
 Skills are installed as rules (`.mdc` files). To use them:
 
 1. Open **Settings > Cursor Settings > Rules**
-2. You'll see the belmont rules listed (product-plan, tech-plan, implement, next, verify, status)
+2. You'll see the belmont rules listed (product-plan, tech-plan, implement, next, verify, status, reset)
 3. Enable the one you want to activate
 4. Start a Composer or Agent session -- the rule will be loaded as context
 5. Or reference them directly: *"Follow the belmont implement workflow"*
@@ -344,8 +320,8 @@ cursor agent --rules .cursor/rules/belmont/implement.mdc
 
 If your tool isn't auto-detected, the agent and skill files are still plain markdown. Point your tool at:
 
-- **Skills**: Read from `.agents/belmont/` (or wherever you've placed them)
-- **Agents**: `.agents/belmont/prd-agent.md`, `codebase-agent.md`, etc.
+- **Skills**: Read from `.agents/skills/belmont/` (or wherever you've placed them)
+- **Agents**: `.agents/belmont/codebase-agent.md`, `implementation-agent.md`, etc.
 - **State**: `.belmont/PRD.md`, `.belmont/PROGRESS.md`, `.belmont/TECH_PLAN.md`, `.belmont/MILESTONE.md`
 
 You can paste the skill content directly into a chat or configure your tool to load it as system context.
@@ -385,11 +361,10 @@ Implements the next pending milestone from the PRD.
 
 - Reads PROGRESS.md to find the first incomplete milestone
 - Creates a **MILESTONE file** (`.belmont/MILESTONE.md`) with orchestrator context
-- Runs 4 agents sequentially, each reading from and writing to the MILESTONE file:
-  1. **Task Analysis** (prd-agent) -- Reads MILESTONE + PRD + TECH_PLAN, writes `## PRD Analysis`
-  2. **Codebase Scan** (codebase-agent) -- Reads MILESTONE + TECH_PLAN + codebase, writes `## Codebase Analysis`
-  3. **Design Analysis** (design-agent) -- Reads MILESTONE + TECH_PLAN + Figma, writes `## Design Specifications`
-  4. **Implementation** (implementation-agent) -- Reads MILESTONE + TECH_PLAN, writes code + `## Implementation Log`
+- Runs 3 agents, each reading from and writing to the MILESTONE file:
+  1. **Codebase Scan** (codebase-agent) -- Reads MILESTONE + codebase, writes `## Codebase Analysis` *(parallel with 2)*
+  2. **Design Analysis** (design-agent) -- Reads MILESTONE + Figma, writes `## Design Specifications` *(parallel with 1)*
+  3. **Implementation** (implementation-agent) -- Reads MILESTONE only, writes code + `## Implementation Log` *(after 1+2)*
 - After each task: marks it complete in PRD.md, updates PROGRESS.md
 - After all milestone tasks: marks the milestone complete
 - **Archives the MILESTONE file** (`MILESTONE-M2.done.md`) to keep context clean for next run
@@ -531,13 +506,12 @@ Other:        Load skills/belmont/implement.md as context
 ```
 
 **What happens:**
-1. Orchestrator creates `.belmont/MILESTONE.md` with task list and PRD context
-2. `prd-agent` reads MILESTONE + PRD + TECH_PLAN, writes structured task summaries to MILESTONE
-3. `codebase-agent` reads MILESTONE + TECH_PLAN, scans codebase, writes patterns to MILESTONE
-4. `design-agent` reads MILESTONE + TECH_PLAN, loads Figma, writes design specs to MILESTONE
-5. `implementation-agent` reads MILESTONE + TECH_PLAN, writes code, tests, verification, commits
-6. PRD.md and PROGRESS.md are updated
-7. MILESTONE file is archived (`MILESTONE-M2.done.md`)
+1. Orchestrator creates `.belmont/MILESTONE.md` with task list, PRD context, and TECH_PLAN context
+2. `codebase-agent` reads MILESTONE, scans codebase, writes patterns to MILESTONE *(parallel with 3)*
+3. `design-agent` reads MILESTONE, loads Figma, writes design specs to MILESTONE *(parallel with 2)*
+4. `implementation-agent` reads MILESTONE (only), writes code, tests, verification, commits
+5. PRD.md and PROGRESS.md are updated, follow-up tasks created
+6. MILESTONE file is archived (`MILESTONE-M2.done.md`)
 
 **After all tasks in the milestone:**
 - Milestone is marked complete in PROGRESS.md
@@ -633,7 +607,6 @@ belmont/
 │       └── reset.md             # Reset state skill
 ├── agents/
 │   └── belmont/
-│       ├── prd-agent.md         # Task analysis agent
 │       ├── codebase-agent.md    # Codebase scanning agent
 │       ├── design-agent.md      # Figma/design analysis agent
 │       ├── implementation-agent.md  # Implementation agent
@@ -650,7 +623,6 @@ belmont/
 your-project/
 ├── .agents/                     # Shared (committed to git)
 │   ├── belmont/                 # Agent instructions
-│   │   ├── prd-agent.md
 │   │   ├── codebase-agent.md
 │   │   ├── design-agent.md
 │   │   ├── implementation-agent.md
@@ -672,7 +644,7 @@ your-project/
 │   ├── MILESTONE.md             # Active milestone context (created during implement)
 │   └── MILESTONE-M1.done.md     # Archived milestone (after completion)
 ├── .claude/                     # Claude Code (if selected)
-│   └── commands/
+│   └── agents/
 │       └── belmont -> ../../.agents/skills/belmont   (symlink)
 ├── .codex/                      # Codex (if selected)
 │   └── belmont -> ../.agents/skills/belmont   (symlink)
@@ -791,25 +763,11 @@ Tracks milestones, session history, and blockers:
 
 All implementation agents communicate through the **MILESTONE file** (`.belmont/MILESTONE.md`). Each agent reads its context from the file and writes its output to a designated section. This eliminates the need for the orchestrator to pass large outputs between agents.
 
-### Phase 1: Task Analysis (prd-agent)
-
-**File**: `.agents/belmont/prd-agent.md` | **Model**: Sonnet
-
-Reads the MILESTONE file, PRD, and TECH_PLAN to produce focused task summaries:
-- Task ID, priority, description
-- Acceptance criteria
-- Figma URLs and design references
-- Target files and dependencies
-- Verification requirements
-- Scope boundaries
-
-**Writes to**: `## PRD Analysis` section of MILESTONE.md
-
-### Phase 2: Codebase Scan (codebase-agent)
+### Phase 1: Codebase Scan (codebase-agent) — *parallel with Phase 2*
 
 **File**: `.agents/belmont/codebase-agent.md` | **Model**: Sonnet
 
-Reads the MILESTONE file and TECH_PLAN, then scans the project:
+Reads the MILESTONE file, then scans the project:
 - Framework, language, styling, testing stack
 - Project structure and conventions
 - Related code, utilities, and type definitions
@@ -818,11 +776,11 @@ Reads the MILESTONE file and TECH_PLAN, then scans the project:
 
 **Writes to**: `## Codebase Analysis` section of MILESTONE.md
 
-### Phase 3: Design Analysis (design-agent)
+### Phase 2: Design Analysis (design-agent) — *parallel with Phase 1*
 
 **File**: `.agents/belmont/design-agent.md` | **Model**: Sonnet
 
-Reads the MILESTONE file and TECH_PLAN, then analyzes Figma designs when provided:
+Reads the MILESTONE file, then analyzes Figma designs when provided:
 - Loads designs via Figma MCP
 - Extracts exact colors, typography, spacing, effects
 - Maps to existing design system components
@@ -833,11 +791,11 @@ Reads the MILESTONE file and TECH_PLAN, then analyzes Figma designs when provide
 
 **Blocking**: If Figma URLs are provided but fail to load, the task is blocked.
 
-### Phase 4: Implementation (implementation-agent)
+### Phase 3: Implementation (implementation-agent) — *after Phases 1+2*
 
 **File**: `.agents/belmont/implementation-agent.md` | **Model**: Opus
 
-Reads the complete MILESTONE file (all previous phases' output) and TECH_PLAN:
+Reads the complete MILESTONE file (all research phases' output):
 - Types/interfaces first, then utilities, then components
 - Follows project patterns from `## Codebase Analysis`
 - Uses design specifications from `## Design Specifications` for UI code
@@ -847,6 +805,7 @@ Reads the complete MILESTONE file (all previous phases' output) and TECH_PLAN:
 - Reports out-of-scope issues as follow-up tasks
 
 **Writes to**: `## Implementation Log` section of MILESTONE.md
+
 
 ### Verification (verification-agent)
 
@@ -920,7 +879,7 @@ If your project doesn't have a `.claude/`, `.codex/`, `.cursor/`, etc. directory
 Verify the symlink exists and points to the right place:
 
 ```bash
-ls -la .claude/commands/belmont
+ls -la .claude/agents/belmont
 # Should show: belmont -> ../../.agents/skills/belmont
 
 ls .agents/skills/belmont/

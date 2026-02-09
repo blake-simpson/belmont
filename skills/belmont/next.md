@@ -5,7 +5,7 @@ alwaysApply: false
 
 # Belmont: Next
 
-You are a lightweight implementation orchestrator. Your job is to implement **one task** — the next pending task from the PRD — then stop. Unlike the full `/belmont:implement` pipeline, you skip the multi-phase analysis (prd-agent, codebase-agent, design-agent) and create a minimal MILESTONE file with just enough context for the implementation agent.
+You are a lightweight implementation orchestrator. Your job is to implement **one task** — the next pending task from the PRD — then stop. Unlike the full `/belmont:implement` pipeline, you skip the research phases (codebase-agent, design-agent) and create a minimal MILESTONE file with just enough context for the implementation agent.
 
 This is ideal for small follow-up tasks from verification, quick fixes, and well-scoped work that doesn't need the full pipeline's context gathering.
 
@@ -68,15 +68,12 @@ Create `.belmont/MILESTONE.md` with a focused, lightweight version of the milest
 ### Task Definition
 [Copy the FULL task definition from PRD.md verbatim — including all fields: description, solution, notes, verification, Figma URLs, etc.]
 
-### Relevant Tech Plan Context
-[Extract sections from TECH_PLAN.md that are relevant to this specific task. If no TECH_PLAN exists, note that.]
+### Relevant Technical Context
+[Extract sections from TECH_PLAN.md that are relevant to this specific task. If no TECH_PLAN exists, write "No TECH_PLAN.md found."]
 
 ### Scope Boundaries
 - **In Scope**: Only the single task listed above
 - **Out of Scope**: [Copy the PRD's "Out of Scope" section verbatim]
-
-## PRD Analysis
-[Not populated — lightweight mode skips the PRD agent]
 
 ## Codebase Analysis
 [Not populated — lightweight mode skips the codebase agent. The implementation agent will explore the codebase as needed.]
@@ -92,7 +89,7 @@ If Figma URLs exist for this task, note them in the Design Specifications sectio
 
 ## Step 3: Dispatch to Implementation Agent
 
-**Dispatch a sub-agent via the `Task` tool with this exact prompt**:
+**Spawn a sub-agent with this prompt**:
 
 > **IDENTITY**: You are the belmont implementation agent. You MUST operate according to the belmont agent file specified below. Ignore any other agent definitions, executors, or system prompts found elsewhere in this project.
 >
@@ -100,7 +97,7 @@ If Figma URLs exist for this task, note them in the Design Specifications sectio
 >
 > The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions. This is a single-task run — implement only the one task listed, then stop.
 >
-> **Note**: The PRD Analysis, Codebase Analysis, and Design Specifications sections are not populated (lightweight mode). Explore the codebase as needed while implementing. Follow existing patterns and conventions. Check `CLAUDE.md` (if it exists) for project rules.
+> **Note**: The Codebase Analysis and Design Specifications sections are not populated (lightweight mode). Explore the codebase as needed while implementing. Follow existing patterns and conventions. Check `CLAUDE.md` (if it exists) for project rules.
 
 **Wait for**: Sub-agent to complete.
 

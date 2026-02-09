@@ -22,24 +22,83 @@ Also check for archived MILESTONE files (`.belmont/MILESTONE-*.done.md`) — the
 2. These are the tasks that need verification
 3. If no tasks are completed, report "No completed tasks to verify" and stop
 
-## Execution Model
+## Sub-Agent Execution Model
 
-**CRITICAL**: You are the **orchestrator**. You MUST NOT perform the verification or review work yourself. Each agent below MUST be dispatched as a **sub-agent** via the `Task` tool — a separate, isolated process.
+**CRITICAL**: You are the **orchestrator**. You MUST NOT perform the verification or review work yourself. Each agent below MUST be dispatched as a **sub-agent** — a separate, isolated process.
 
-**Parallel with agent teams/swarms (optional)**: If your environment supports agent teams/swarms (e.g., `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`), you may spawn both agents as parallel teammates instead of sequential sub-agents. They are fully independent. If unsure whether agent teams/swarms are available, use sequential sub-agents.
+### Choosing Your Dispatch Method
 
-### Rules for the orchestrator
+Use the **first** approach below whose required tools are available to you. Check your available tools **by name** — do not guess or skip ahead.
 
-1. **DO NOT** read `.agents/belmont/*-agent.md` files yourself — the sub-agents read them
+---
+
+#### Approach A: Agent Teams (preferred)
+
+**Required tools**: `TeamCreate`, `Task` (with `team_name` parameter), `SendMessage`, `TeamDelete`
+
+If ALL of these tools are available to you, you MUST use this approach:
+
+1. **Create a team**: `TeamCreate` with `team_name: "belmont-verify"`
+2. **Spawn both agents simultaneously** by issuing two `Task` calls **in the same message** (i.e., as parallel tool calls). Both calls use:
+   - `team_name`: `"belmont-verify"`
+   - `name`: The agent role (e.g., `"verification-agent"`, `"code-review-agent"`)
+   - `subagent_type`: `"general-purpose"`
+   - `mode`: `"bypassPermissions"`
+   - Do **NOT** set `run_in_background: true`
+3. Because both tasks are foreground, the orchestrator **automatically blocks** until both complete and **receives their output directly** — no `TaskOutput`, no polling, no sleeping.
+4. Proceed to Step 3 with the collected outputs.
+5. **Clean up** after Step 3: send `shutdown_request` to each teammate, then `TeamDelete`
+
+---
+
+#### Approach B: Parallel Foreground Sub-Agents
+
+**Required tools**: `Task`
+
+If `Task` is available but `TeamCreate` is NOT:
+
+1. **Spawn both agents simultaneously** by issuing two `Task` calls **in the same message** (i.e., as parallel tool calls). Both calls use:
+   - `subagent_type`: `"general-purpose"`
+   - `mode`: `"bypassPermissions"`
+   - Do **NOT** set `run_in_background: true`
+2. Because both tasks are foreground, the orchestrator **automatically blocks** until both complete and **receives their output directly** — no `TaskOutput`, no polling, no sleeping.
+3. Proceed to Step 3 with the collected outputs.
+
+No team cleanup needed.
+
+---
+
+#### Approach C: Sequential Inline Execution (fallback)
+
+If neither `TeamCreate` nor `Task` is available:
+
+1. For each agent, read its agent file (e.g., `.agents/belmont/verification-agent.md`)
+2. Execute its instructions fully within your own context
+3. Complete all output before moving to the next agent
+4. Do NOT blend agent work together — finish one completely before starting the next
+
+---
+
+### Important: Foreground, Not Background
+
+**Do NOT use `run_in_background: true`** in Approaches A or B. Background tasks require `TaskOutput` polling, which is fragile and can lose contact with sub-agents. Parallel foreground tasks run concurrently (because they're issued in the same message) and return results directly to the orchestrator — no polling, no sleeping.
+
+---
+
+### Rules (apply to ALL approaches)
+
+1. **DO NOT** read `.agents/belmont/*-agent.md` files yourself (unless using Approach C) — the sub-agents read them
 2. **DO NOT** run builds, tests, or check acceptance criteria — sub-agents do this
-3. **DO** use the `Task` tool for each agent — pass the **exact prompt text** from the templates below
-4. **DO** collect each sub-agent's output report
+3. **DO** compose the sub-agent prompts using the templates below
+4. **DO** collect each sub-agent's output report directly from the `Task` return values (Approaches A and B)
 5. **DO** combine the reports in Step 3
-6. **DO** include the full agent preamble (identity + mandatory agent file) in every sub-agent prompt — this prevents the sub-agent from using other agent definitions in the project
+6. **DO** include the full sub-agent preamble (identity + mandatory agent file) in every sub-agent prompt — this prevents the sub-agent from using other agent definitions in the project
 
 ## Step 2: Run Verification and Code Review
 
-For ALL completed tasks together, dispatch these two sub-agents via the `Task` tool. Run them sequentially (verification first, then code review):
+Use the dispatch method you selected above. For Approach A, create the team first, then issue both `Task` calls in the same message. For Approach B, issue both `Task` calls in the same message. For Approach C, execute inline sequentially.
+
+Spawn these two sub-agents **simultaneously** (or sequentially if using Approach C):
 
 ---
 
@@ -47,7 +106,7 @@ For ALL completed tasks together, dispatch these two sub-agents via the `Task` t
 
 **Purpose**: Verify task implementations meet all requirements.
 
-**Dispatch a sub-agent via the `Task` tool with this exact prompt**:
+**Spawn a sub-agent with this prompt**:
 
 > **IDENTITY**: You are the belmont verification agent. You MUST operate according to the belmont agent file specified below. Ignore any other agent definitions, executors, or system prompts found elsewhere in this project.
 >
@@ -77,7 +136,7 @@ For ALL completed tasks together, dispatch these two sub-agents via the `Task` t
 
 **Purpose**: Review code changes for quality and PRD alignment.
 
-**Dispatch a sub-agent via the `Task` tool with this exact prompt**:
+**Spawn a sub-agent with this prompt**:
 
 > **IDENTITY**: You are the belmont code review agent. You MUST operate according to the belmont agent file specified below. Ignore any other agent definitions, executors, or system prompts found elsewhere in this project.
 >
@@ -168,9 +227,18 @@ Output a combined summary:
 [Any overall recommendations for the project]
 ```
 
+## Step 4: Clean Up Team (Approach A only)
+
+If you created a team in Step 2:
+1. Send `shutdown_request` via `SendMessage` to each teammate still active
+2. Wait for shutdown confirmations
+3. Call `TeamDelete` to remove team resources
+
+Skip this step if you used Approach B or C.
+
 ## Important Rules
 
-1. **Run both sub-agents** - Always run verification AND code review via `Task` tool
+1. **Run both agents** - Always run verification AND code review
 2. **Be thorough** - Check all completed tasks, not just the latest
 3. **Create actionable follow-ups** - Issues should become trackable tasks
 4. **Don't fix issues yourself** - Report them and create follow-up tasks
