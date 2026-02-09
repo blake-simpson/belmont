@@ -1,0 +1,168 @@
+{
+  "root": "/Users/blake/code/personal/belmont",
+  "generated_at": "2026-02-09T13:06:04.958284Z",
+  "files": [
+    {
+      "path": "README.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "agents",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "agents/belmont",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "agents/belmont/codebase-agent.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "agents/belmont/core-review-agent.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "agents/belmont/design-agent.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "agents/belmont/implementation-agent.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "agents/belmont/verification-agent.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "bin",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "bin/install.ps1",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "bin/install.sh",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "cmd",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "cmd/belmont",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "cmd/belmont/main.go",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "codex",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "codex/SKILLS.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "go.mod",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "skills/belmont",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": true
+    },
+    {
+      "path": "skills/belmont/SKILL.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/implement.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/next.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/product-plan.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/reset.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/status.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/tech-plan.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    },
+    {
+      "path": "skills/belmont/verify.md",
+      "size": 0,
+      "mod_time": "0001-01-01T00:00:00Z",
+      "is_dir": false
+    }
+  ]
+}

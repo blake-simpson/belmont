@@ -30,6 +30,9 @@ Read these files first:
 - `.belmont/PROGRESS.md` - Current progress and milestones
 - `.belmont/TECH_PLAN.md` - Technical implementation plan (if exists)
 
+Optional helper:
+- If the CLI is available, `belmont status --format json` can provide a quick summary of the next pending milestone/task. Still read the files above for full context.
+
 ## Step 1: Find the Next Task
 
 1. Read `.belmont/PROGRESS.md` and find the **first pending milestone** (any milestone with unchecked `[ ]` tasks)

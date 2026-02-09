@@ -28,6 +28,14 @@ You are running an interactive planning session. You should not switch the agent
 - Writing to `.belmont/PRD.md` and `.belmont/PROGRESS.md`
 - Using WebFetch for research
 
+## Helper Commands (Optional)
+
+If the CLI is available, prefer quick helpers for lightweight codebase context:
+- `belmont tree --max-depth 3` for a high-level structure overview
+- `belmont search --pattern "..."` to spot existing patterns
+
+If the CLI isn't available, read files directly.
+
 ## Update vs. Create (CRITICAL)
 
 Before planning, read `.belmont/PRD.md` and `.belmont/PROGRESS.md`.

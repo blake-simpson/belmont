@@ -14,6 +14,9 @@ Read these files first:
 - `.belmont/PROGRESS.md` - Current progress and milestones
 - `.belmont/TECH_PLAN.md` - Technical implementation plan (if exists)
 
+Optional helper:
+- If the CLI is available, `belmont status --format json` can provide a quick summary of milestones/tasks. Still read the files above for full context.
+
 ## Step 1: Find Next Milestone
 
 1. Read `.belmont/PROGRESS.md` and find the Milestones section
@@ -257,6 +260,7 @@ Skip this if you used Approach B or C.
 
 1. If you have just completed the final milestone and all work is complete, automatically run "/belmont:verify" to perform QA.
 2. If there are more milestones, exit and prompt user to "/clear" and "/belmont:verify", "/belmont:implement", or "/belmont:status"
+   - If you are Codex, instead prompt: "/new" and then "belmont:verify", "belmont:implement", or "belmont:status"
 
 ## Blocker Handling
 

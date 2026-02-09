@@ -7,6 +7,22 @@ alwaysApply: false
 
 Read the current project state and produce a formatted status report.
 
+## Fast Path (Preferred)
+
+If available, use the global CLI first:
+
+```bash
+belmont status
+```
+
+If the global CLI is not available, and a local helper exists, use it:
+
+```bash
+.belmont/bin/belmont status
+```
+
+If both commands fail or the helper is missing, fall back to the manual steps below.
+
 ## Files to Read
 
 1. `.belmont/PRD.md` - Task definitions and completion status
@@ -79,7 +95,8 @@ Recent decisions:
 ## Rules
 
 - **DO NOT** modify any files - this is read-only
-- **DO NOT** scan the codebase / git. Just use the progress + PRD files for info.
+- **DO NOT** run `git status` or otherwise inspect git. Belmont status is independent of git.
+- **DO NOT** scan the codebase. Just use the progress + PRD files for info.
 - **DO** read relevant files (PRD, PROGRESS only)
 - **DO** show all tasks with their current status
 - **DO** show milestones from PROGRESS.md

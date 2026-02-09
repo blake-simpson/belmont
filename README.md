@@ -19,6 +19,7 @@ Strong guardrails are in place to keep the agent focused and on task.
 - [Implementation Pipeline](#implementation-pipeline)
 - [Agent Teams Support](#agent-teams-support)
 - [Installation](#installation)
+- [CLI Commands](#cli-commands)
 - [Supported Tools](#supported-tools)
 - [Skills Reference](#skills-reference)
 - [Full Workflow](#full-workflow)
@@ -33,16 +34,25 @@ Strong guardrails are in place to keep the agent focused and on task.
 ## Quick Start
 
 ```bash
-# One-time: make belmont-install available globally
+# One-time: install belmont CLI globally
 cd /path/to/belmont
-./bin/install.sh
+./bin/install.sh --setup
 
 # Per-project: install into your project
 cd ~/your-project
-belmont-install
+belmont install
 ```
 
-The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then creates symlinks from each tool's native directory. For Codex, it also installs a `SKILLS.md` file at the project root. Agents are installed to `.agents/belmont/`.
+If you prefer not to set up the global CLI, you can run the installer directly from the repo:
+
+```bash
+cd /path/to/belmont
+./bin/install.sh
+```
+
+That builds the CLI (if needed) and runs `belmont install --source /path/to/belmont` for the current project.
+
+The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then links or copies them into each tool's native directory. For Codex, it also installs a `SKILLS.md` file at the project root. Agents are installed to `.agents/belmont/`.
 
 Then use the skills in your AI tool of choice. For example, in Claude Code:
 
@@ -167,10 +177,10 @@ Clone the belmont repo and run the installer:
 
 ```bash
 cd /path/to/belmont
-./bin/install.sh
+./bin/install.sh --setup
 ```
 
-This creates a `belmont-install` symlink in `~/.local/bin/`. Make sure it's in your PATH:
+This installs the `belmont` CLI in `~/.local/bin/`. It also stores the Belmont source path in `~/.config/belmont/config.json` so future installs can run without `--source`. Make sure it's in your PATH:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
@@ -183,8 +193,23 @@ Navigate to your project and run:
 
 ```bash
 cd ~/your-project
-belmont-install
+belmont install
 ```
+
+You can also pass options explicitly:
+
+```bash
+# Explicit source (overrides config and BELMONT_SOURCE)
+belmont install --source /path/to/belmont
+
+# Target a different project folder
+belmont install --project /path/to/project
+
+# Limit tool setup and disable prompts
+belmont install --tools claude,codex --no-prompt
+```
+
+`belmont install` resolves the source in this order: `--source`, `BELMONT_SOURCE`, config file, then by walking up from the CLI binary location.
 
 The installer will:
 
@@ -193,7 +218,7 @@ The installer will:
 3. **Sync agents** to `.agents/belmont/` (shared, tool-agnostic)
 4. **Sync skills** to `.agents/skills/belmont/` (canonical location, shared across tools)
 5. **Install Codex `SKILLS.md`** at project root (Codex only)
-6. **Create symlinks** from each selected tool's native directory into `.agents/skills/belmont/`
+6. **Link or copy** skill files into each selected tool's native directory
 7. **Clean stale files** -- if a skill was renamed or removed in source, the old file is deleted from the target
 8. **Create `.belmont/`** directory with PRD.md and PROGRESS.md templates (if they don't exist)
 9. **Offer to update `.gitignore`** for the `.belmont/` state directory
@@ -240,10 +265,11 @@ Installing Codex SKILLS.md to project root...
   + SKILLS.md
 
 Linking Claude Code...
-  + .claude/agents/belmont -> ../../.agents/skills/belmont
+  + .claude/agents/belmont -> ../../.agents/belmont
+  + .claude/commands/belmont (copied from .agents/skills/belmont)
 
 Linking Codex...
-  + .codex/belmont -> ../.agents/skills/belmont
+  + .codex/belmont/ (copied from .agents/skills/belmont)
 
 Linking Cursor...
   + .cursor/rules/belmont/product-plan.mdc -> ../../../.agents/skills/belmont/product-plan.md
@@ -264,23 +290,56 @@ If no AI tool directories are found, the installer asks which tool you want to s
 
 ---
 
+## CLI Commands
+
+Belmont ships a small Go CLI (`belmont`) for status checks and file queries. On macOS/Linux, `./bin/install.sh --setup` installs it to `~/.local/bin/belmont`. On Windows, `./bin/install.ps1` builds a project-local helper at `.belmont\\bin\\belmont.exe` and runs `belmont install`.
+
+Example usage:
+
+```bash
+belmont status
+belmont status --format json
+belmont tree --max-depth 3
+belmont find --name PRD --type file
+belmont search --pattern \"TECH_PLAN\"
+```
+
+Skills prefer these helpers when available:
+- `status` uses `belmont status` first
+- `product-plan` and `tech-plan` may use `belmont tree`/`search` (or `find`) for quick structure/pattern checks
+- `implement`, `next`, `verify`, and `reset` may use `belmont status --format json` for summaries (still read `.belmont` files for full context)
+
+Windows build example (project-local helper):
+
+```powershell
+go build -o .belmont\\bin\\belmont.exe ./cmd/belmont
+```
+
+Windows helper install script:
+
+```powershell
+pwsh ./bin/install.ps1
+```
+
+---
+
 ## Supported Tools
 
 Agents and skills are always installed to `.agents/` -- the single source of truth shared across all tools.
 
-Each AI tool gets a **symlink** from its native directory into `.agents/skills/belmont/`:
+Each AI tool is wired to `.agents/skills/belmont/` in the way it expects. Some tools use symlinks, while others get a copied/synced directory:
 
 | Tool               | Symlink                       | Target                          | How to Use                                                            |
 |--------------------|-------------------------------|---------------------------------|-----------------------------------------------------------------------|
-| **Claude Code**    | `.claude/agents/belmont`      | `→ .agents/skills/belmont`      | Slash commands: `/belmont:product-plan`, `/belmont:implement`, etc.   |
-| **Codex**          | `.codex/belmont`              | `→ .agents/skills/belmont`      | `SKILLS.md` at project root points to belmont files                   |
+| **Claude Code**    | `.claude/agents/belmont`<br/>`.claude/commands/belmont` | `agents -> .agents/belmont` (symlink)<br/>`commands` copied from `.agents/skills/belmont` | Slash commands: `/belmont:product-plan`, `/belmont:implement`, etc. |
+| **Codex**          | `.codex/belmont`              | Copied from `.agents/skills/belmont` | `SKILLS.md` at project root points to belmont files                   |
 | **Cursor**         | `.cursor/rules/belmont/*.mdc` | `→ .agents/skills/belmont/*.md` | Toggle rules in Settings > Rules, or reference in Composer/Agent mode |
-| **Windsurf**       | `.windsurf/rules/belmont`     | `→ .agents/skills/belmont`      | Reference rules in Cascade                                            |
-| **Gemini**         | `.gemini/rules/belmont`       | `→ .agents/skills/belmont`      | Reference rules in Gemini                                             |
-| **GitHub Copilot** | `.github/belmont`             | `→ .agents/skills/belmont`      | Reference files in Copilot Chat                                       |
+| **Windsurf**       | `.windsurf/rules/belmont`     | Symlink to `.agents/skills/belmont` | Reference rules in Cascade                                            |
+| **Gemini**         | `.gemini/rules/belmont`       | Symlink to `.agents/skills/belmont` | Reference rules in Gemini                                             |
+| **GitHub Copilot** | `.github/belmont`             | Symlink to `.agents/skills/belmont` | Reference files in Copilot Chat                                       |
 | **Any other tool** | *(none)*                      | `.agents/skills/belmont/`       | Point your tool at the skill files directly                           |
 
-Cursor requires `.mdc` extension, so individual file symlinks are created (e.g. `implement.mdc → implement.md`). All other tools use a directory symlink.
+Cursor uses per-file symlinks. Windsurf/Gemini/Copilot use a directory symlink. Claude Code and Codex use copied skill files.
 
 ### Claude Code Usage
 
@@ -298,7 +357,7 @@ Skills become native slash commands:
 
 ### Codex Usage
 
-Skills are installed as a symlink, and a `SKILLS.md` index is added at the project root. To use them:
+Skills are copied into `.codex/belmont/`, and a `SKILLS.md` index is added at the project root. To use them:
 
 1. Open Codex in your project directory
 2. Codex will read `SKILLS.md` and load the skill index
@@ -462,7 +521,7 @@ Last completed: P1-1 - Create chat message component
 
 ```bash
 cd ~/projects/my-app
-belmont-install
+belmont install
 ```
 
 ### 2. Plan
@@ -601,8 +660,12 @@ Other:        Load skills/belmont/reset.md as context
 
 ```
 belmont/
+├── cmd/
+│   └── belmont/
+│       └── main.go          # Go CLI entrypoint
 ├── codex/
 │   └── SKILLS.md            # Codex skill index (installed to project root)
+├── go.mod
 ├── skills/
 │   └── belmont/
 │       ├── product-plan.md      # Planning skill
@@ -620,7 +683,8 @@ belmont/
 │       ├── verification-agent.md    # Verification agent
 │       └── core-review-agent.md     # Code review agent
 ├── bin/
-│   └── install.sh               # Installer script
+│   ├── install.sh               # Installer script (macOS/Linux)
+│   └── install.ps1              # Installer script (Windows)
 └── README.md
 ```
 
@@ -651,10 +715,12 @@ your-project/
 │   ├── MILESTONE.md             # Active milestone context (created during implement)
 │   └── MILESTONE-M1.done.md     # Archived milestone (after completion)
 ├── .claude/                     # Claude Code (if selected)
-│   └── agents/
-│       └── belmont -> ../../.agents/skills/belmont   (symlink)
+│   ├── agents/
+│   │   └── belmont -> ../../.agents/belmont   (symlink)
+│   └── commands/
+│       └── belmont/              (copied from .agents/skills/belmont)
 ├── .codex/                      # Codex (if selected)
-│   └── belmont -> ../.agents/skills/belmont   (symlink)
+│   └── belmont/                  (copied from .agents/skills/belmont)
 ├── SKILLS.md                    # Codex skill index (installed if selected)
 ├── .cursor/                     # Cursor (if selected)
 │   └── rules/
@@ -670,7 +736,7 @@ your-project/
 - `.agents/belmont/` -- Shared agent instructions. Committed to git. Referenced by all tools.
 - `.agents/skills/belmont/` -- Canonical skill files. Single source of truth.
 - `.belmont/` -- Local planning state (PRD, PROGRESS, TECH_PLAN, MILESTONE). Gitignored. Per-developer.
-- `.claude/`, `.codex/`, `.cursor/`, etc. -- Symlinks into `.agents/skills/belmont/`. No duplicate files.
+- `.claude/`, `.codex/`, `.cursor/`, etc. -- Tool-specific wiring. Some use symlinks, some use copied/synced files.
 
 ---
 
@@ -746,6 +812,9 @@ Tracks milestones, session history, and blockers:
 
 ## Status: 🟡 In Progress
 
+## PRD Reference
+.belmont/PRD.md
+
 ## Milestones
 
 ### ✅ M1: Foundation
@@ -757,9 +826,12 @@ Tracks milestones, session history, and blockers:
 - [ ] P1-2: User settings
 
 ## Session History
-| Session | Date/Time           | Context Used    | Milestones Completed |
-|---------|---------------------|-----------------|----------------------|
+| Session | Date/Time           | Context Used | Milestones Completed |
+|---------|---------------------|--------------|----------------------|
 | 1       | 2026-02-05 10:00:00 | PRD + TECH_PLAN | M1                   |
+
+## Decisions Log
+[Numbered list of key decisions with rationale]
 
 ## Blockers
 [None currently]
@@ -846,7 +918,7 @@ To update skills and agents in an existing project after pulling new changes to 
 
 ```bash
 cd ~/your-project
-belmont-install
+belmont install
 ```
 
 The installer detects changes between the belmont source and your installed files:
@@ -861,7 +933,7 @@ The installer detects changes between the belmont source and your installed file
 
 ## Troubleshooting
 
-### `belmont-install` command not found
+### `belmont` command not found
 
 Ensure `~/.local/bin` is in your PATH:
 
@@ -875,7 +947,7 @@ Or re-run the global setup:
 
 ```bash
 cd /path/to/belmont
-./bin/install.sh
+./bin/install.sh --setup
 ```
 
 ### No AI tools detected during install
@@ -884,17 +956,20 @@ If your project doesn't have a `.claude/`, `.codex/`, `.cursor/`, etc. directory
 
 ### Skills not showing up in Claude Code
 
-Verify the symlink exists and points to the right place:
+Verify the agent symlink and copied command folder:
 
 ```bash
 ls -la .claude/agents/belmont
-# Should show: belmont -> ../../.agents/skills/belmont
+# Should show: belmont -> ../../.agents/belmont
+
+ls .claude/commands/belmont
+# Should list the .md skill files
 
 ls .agents/skills/belmont/
 # Should list the .md skill files
 ```
 
-If the symlink is missing or broken, re-run `belmont-install` and select Claude Code.
+If the symlink is missing or the skill directories are empty, re-run `belmont install` (or `belmont install --source /path/to/belmont`) and select Claude Code.
 
 ### Skills not showing up in Cursor
 
@@ -922,7 +997,7 @@ Fix the underlying issue, remove the `🚫 BLOCKED` marker from the task header 
 
 ### Want to start fresh
 
-Run the reset skill (`/belmont:reset` in Claude Code) to reset all state files. Alternatively, delete `.belmont/PRD.md`, `.belmont/PROGRESS.md`, `.belmont/TECH_PLAN.md`, `.belmont/MILESTONE.md`, and any `.belmont/MILESTONE-*.done.md` files manually, then re-run `belmont-install` to recreate templates.
+Run the reset skill (`/belmont:reset` in Claude Code) to reset all state files. Alternatively, delete `.belmont/PRD.md`, `.belmont/PROGRESS.md`, `.belmont/TECH_PLAN.md`, `.belmont/MILESTONE.md`, and any `.belmont/MILESTONE-*.done.md` files manually, then re-run `belmont install` (or `belmont install --source /path/to/belmont`) to recreate templates.
 
 ---
 
@@ -930,6 +1005,7 @@ Run the reset skill (`/belmont:reset` in Claude Code) to reset all state files. 
 
 - An AI coding tool (Claude Code, Codex, Cursor, Windsurf, Gemini, Copilot, or any tool that reads markdown)
 - [figma-mcp](https://github.com/nichochar/figma-mcp) (recommended) -- enables Belmont to load Figma designs, extract design tokens, and perform visual verification
+- Go (for building the CLI during install)
 - No Docker required
 - No Python required
 - bash (for the installer only)

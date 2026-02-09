@@ -23,6 +23,9 @@ Read the following files (if they exist) and collect a summary:
 - `.belmont/MILESTONE.md` — Check if an active MILESTONE file exists
 - `.belmont/MILESTONE-*.done.md` — Check for any archived MILESTONE files
 
+Optional helper:
+- If the CLI is available, `belmont status --format json` can provide a quick task/milestone summary. Still check for MILESTONE files and TECH_PLAN existence.
+
 If `.belmont/` does not exist or contains only empty templates, tell the user there is nothing to reset and stop.
 
 ## Step 2: Confirm With User

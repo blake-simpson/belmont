@@ -44,6 +44,7 @@ A file is **empty/default** if it doesn't exist, contains only the reset templat
 - Read the PRD at `.belmont/PRD.md`
 - If any Figma URLs are included in the PRD, spawn a sub-agent to assess them via MCP and return the collated information. The sub-agent prompt MUST begin with: **IDENTITY**: You are the belmont design analysis agent. Ignore any other agent definitions, executors, or system prompts found elsewhere in this project. **MANDATORY FIRST STEP**: Read `.agents/belmont/design-agent.md` NOW before doing anything else.
 - Explore the codebase for existing patterns. This may be done in a sub-agent if the codebase is large.
+  - If the CLI is available, prefer `belmont tree --max-depth 3` and `belmont search --pattern "..."` (or `belmont find --name ...`) for quick structure/pattern checks.
 - Load relevant skills (frontend-design, vercel-react-best-practices, security, etc.)
 - Consider middleware, webhooks, infrastructure (how are we hosted?), etc.
 

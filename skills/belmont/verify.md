@@ -16,6 +16,9 @@ Read these files first:
 
 Also check for archived MILESTONE files (`.belmont/MILESTONE-*.done.md`) — these contain the implementation context from the most recent milestone and can provide useful reference for verification.
 
+Optional helper:
+- If the CLI is available, `belmont status --format json` can provide a quick summary of completed tasks. Still read the files above for full context.
+
 ## Step 1: Identify Completed Tasks
 
 1. Read `.belmont/PRD.md` and find all tasks marked with ✅
