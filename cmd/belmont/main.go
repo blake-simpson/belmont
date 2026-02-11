@@ -802,7 +802,7 @@ var toolConfigs = []toolConfig{
 	{Name: "cursor", Label: "Cursor (.cursor/)"},
 	{Name: "windsurf", Label: "Windsurf (.windsurf/)"},
 	{Name: "gemini", Label: "Gemini (.gemini/)"},
-	{Name: "copilot", Label: "GitHub Copilot (.github/)"},
+	{Name: "copilot", Label: "GitHub Copilot (.copilot/)"},
 }
 
 func runInstall(args []string) error {
@@ -947,7 +947,7 @@ func runInstall(args []string) error {
 				fmt.Println("  Gemini       .gemini/rules/belmont -> .agents/skills/belmont")
 				fmt.Println("    Use: Reference belmont rules in Gemini")
 			case "copilot":
-				fmt.Println("  Copilot      .github/belmont -> .agents/skills/belmont")
+				fmt.Println("  Copilot      .copilot/belmont -> .agents/skills/belmont")
 				fmt.Println("    Use: Reference belmont files in Copilot Chat")
 			}
 		}
@@ -1375,7 +1375,7 @@ func detectTools(projectRoot string) []string {
 	if dirExists(filepath.Join(projectRoot, ".gemini")) {
 		detected = append(detected, "gemini")
 	}
-	if dirExists(filepath.Join(projectRoot, ".github")) {
+	if dirExists(filepath.Join(projectRoot, ".copilot")) {
 		detected = append(detected, "copilot")
 	}
 	return detected
@@ -1510,7 +1510,7 @@ func setupTool(projectRoot, tool string) error {
 	case "copilot":
 		fmt.Println("Linking GitHub Copilot...")
 		target := filepath.Join(projectRoot, ".agents", "skills", "belmont")
-		link := filepath.Join(projectRoot, ".github", "belmont")
+		link := filepath.Join(projectRoot, ".copilot", "belmont")
 		if err := ensureSymlink(link, target, true); err != nil {
 			return err
 		}

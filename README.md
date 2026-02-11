@@ -216,7 +216,7 @@ go run ./cmd/belmont install --source . --project /tmp/test-project --no-prompt
 
 The installer will:
 
-1. **Scan for AI tools** -- detects `.claude/`, `.codex/`, `.cursor/`, `.windsurf/`, `.gemini/`, `.github/`
+1. **Scan for AI tools** -- detects `.claude/`, `.codex/`, `.cursor/`, `.windsurf/`, `.gemini/`, `.copilot/`
 2. **Ask which to install for** -- all detected, a specific one, or skip
 3. **Sync agents** to `.agents/belmont/` (shared, tool-agnostic)
 4. **Sync skills** to `.agents/skills/belmont/` (canonical location, shared across tools)
@@ -344,7 +344,7 @@ Each AI tool is wired to `.agents/skills/belmont/` in the way it expects. Some t
 | **Cursor**         | `.cursor/rules/belmont/*.mdc`                           | `→ .agents/skills/belmont/*.md`                                                           | Toggle rules in Settings > Rules, or reference in Composer/Agent mode |
 | **Windsurf**       | `.windsurf/rules/belmont`                               | Symlink to `.agents/skills/belmont`                                                       | Reference rules in Cascade                                            |
 | **Gemini**         | `.gemini/rules/belmont`                                 | Symlink to `.agents/skills/belmont`                                                       | Reference rules in Gemini                                             |
-| **GitHub Copilot** | `.github/belmont`                                       | Symlink to `.agents/skills/belmont`                                                       | Reference files in Copilot Chat                                       |
+| **GitHub Copilot** | `.copilot/belmont`                                      | Symlink to `.agents/skills/belmont`                                                       | Reference files in Copilot Chat                                       |
 | **Any other tool** | *(none)*                                                | `.agents/skills/belmont/`                                                                 | Point your tool at the skill files directly                           |
 
 Cursor uses per-file symlinks. Windsurf/Gemini/Copilot use a directory symlink. Claude Code and Codex use copied skill files.
