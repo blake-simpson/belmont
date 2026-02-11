@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.0
+
+**Released:** 2026-02-11
+
+### Changes since v0.2.0
+
+- Improve tech-plan to consider infrastructure + SQL optimisation
+
+
+
 ## v0.2.0
 
 **Released:** 2026-02-11
