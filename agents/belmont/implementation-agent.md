@@ -85,7 +85,11 @@ Execute in this order:
    - Connect to API/state management
    - Add i18n keys for all user-facing text
 
-6. **Tests**
+6. **Infrastructure**
+   - Consider the target infrastructure of the project (cli builds, target environment, web hosting, database, etc.)
+   - When considering SQL queries, ensure the execution order is optimised. Ensure no N+1 problems will exist.
+
+7. **Tests**
    - Write unit tests for new code
    - Follow existing test patterns from `## Codebase Analysis`
    - Aim for meaningful coverage, not 100%
