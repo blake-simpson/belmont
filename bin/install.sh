@@ -1,7 +1,12 @@
 #!/bin/bash
 set -e
 
-# Belmont install shim (Go-based)
+# Belmont install shim (Go-based) — DEVELOPER TOOL
+#
+# NOTE: For end users, install belmont with:
+#   curl -fsSL https://raw.githubusercontent.com/blake-simpson/belmont/main/install.sh | sh
+#
+# This script is for developers who have cloned the repo and want to build from source.
 #
 # Usage:
 #   ./bin/install.sh          Builds belmont and installs into current project

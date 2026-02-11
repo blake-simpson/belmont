@@ -34,25 +34,15 @@ Strong guardrails are in place to keep the agent focused and on task.
 ## Quick Start
 
 ```bash
-# One-time: install belmont CLI globally
-cd /path/to/belmont
-./bin/install.sh --setup
+# Install belmont (one-time)
+curl -fsSL https://raw.githubusercontent.com/blake-simpson/belmont/main/install.sh | sh
 
-# Per-project: install into your project
+# Set up your project
 cd ~/your-project
 belmont install
 ```
 
-If you prefer not to set up the global CLI, you can run the installer directly from the repo:
-
-```bash
-cd /path/to/belmont
-./bin/install.sh
-```
-
-That builds the CLI (if needed) and runs `belmont install --source /path/to/belmont` for the current project.
-
-The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then links or copies them into each tool's native directory. For Codex, it also adds a small Belmont section in `AGENTS.md` so `belmont:<skill>` requests resolve to local files. Agents are installed to `.agents/belmont/`.
+The installer detects which AI tools you have (Claude Code, Codex, Cursor, Windsurf, etc.) and installs skills to `.agents/skills/belmont/`, then links or copies them into each tool's native directory. Agents are installed to `.agents/belmont/`.
 
 Then use the skills in your AI tool of choice. For example, in Claude Code:
 
@@ -171,23 +161,26 @@ If your environment supports **agent teams** (e.g. Claude Code's multi-agent fea
 
 ## Installation
 
-### Step 1: Global Setup (once)
-
-Clone the belmont repo and run the installer:
+### Install (one command)
 
 ```bash
-cd /path/to/belmont
-./bin/install.sh --setup
+curl -fsSL https://raw.githubusercontent.com/blake-simpson/belmont/main/install.sh | sh
 ```
 
-This installs the `belmont` CLI in `~/.local/bin/`. It also stores the Belmont source path in `~/.config/belmont/config.json` so future installs can run without `--source`. Make sure it's in your PATH:
+This downloads the latest release binary to `~/.local/bin/belmont`. Make sure it's in your PATH:
 
 ```bash
-# Add to ~/.zshrc or ~/.bashrc
+# Add to ~/.zshrc or ~/.bashrc (if not already)
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Step 2: Per-Project Install
+You can override the install directory with `BELMONT_INSTALL_DIR`:
+
+```bash
+BELMONT_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/blake-simpson/belmont/main/install.sh | sh
+```
+
+### Per-Project Setup
 
 Navigate to your project and run:
 
@@ -196,12 +189,9 @@ cd ~/your-project
 belmont install
 ```
 
-You can also pass options explicitly:
+Release binaries have all skills and agents embedded -- no source directory needed. You can also pass options:
 
 ```bash
-# Explicit source (overrides config and BELMONT_SOURCE)
-belmont install --source /path/to/belmont
-
 # Target a different project folder
 belmont install --project /path/to/project
 
@@ -209,7 +199,20 @@ belmont install --project /path/to/project
 belmont install --tools claude,codex --no-prompt
 ```
 
-`belmont install` resolves the source in this order: `--source`, `BELMONT_SOURCE`, config file, then by walking up from the CLI binary location.
+### Developer Setup (contributors)
+
+If you've cloned the repo and want to build from source:
+
+```bash
+# Build with embedded content
+./scripts/build.sh
+
+# Or use the dev installer (builds + records source path)
+./bin/install.sh --setup
+
+# Run during development (requires --source flag since go run has no embedded files)
+go run ./cmd/belmont install --source . --project /tmp/test-project --no-prompt
+```
 
 The installer will:
 
@@ -293,16 +296,20 @@ If no AI tool directories are found, the installer asks which tool you want to s
 
 ## CLI Commands
 
-Belmont ships a small Go CLI (`belmont`) for status checks and file queries. On macOS/Linux, `./bin/install.sh --setup` installs it to `~/.local/bin/belmont`. On Windows, `./bin/install.ps1` builds a project-local helper at `.belmont\\bin\\belmont.exe` and runs `belmont install`.
+Belmont ships a small Go CLI (`belmont`) for status checks, file queries, and self-updating. Install via the curl one-liner above, or on Windows use `./bin/install.ps1` for a project-local helper.
 
 Example usage:
 
 ```bash
-belmont status
-belmont status --format json
-belmont tree --max-depth 3
-belmont find --name PRD --type file
-belmont search --pattern \"TECH_PLAN\"
+belmont install                         # Install skills/agents into current project
+belmont update                          # Update to latest release
+belmont update --check                  # Check for updates without installing
+belmont status                          # View project progress
+belmont status --format json            # Machine-readable status
+belmont tree --max-depth 3              # Project tree
+belmont find --name PRD --type file     # Find files
+belmont search --pattern "TECH_PLAN"    # Search file contents
+belmont version                         # Show version, commit, build date
 ```
 
 Skills prefer these helpers when available:
@@ -663,7 +670,9 @@ Other:        Load skills/belmont/reset.md as context
 belmont/
 ├── cmd/
 │   └── belmont/
-│       └── main.go          # Go CLI entrypoint
+│       ├── main.go              # Go CLI entrypoint
+│       ├── embed.go             # go:embed directives (release builds)
+│       └── embed_dev.go         # Empty embed vars (dev builds)
 ├── go.mod
 ├── skills/
 │   └── belmont/
@@ -681,9 +690,17 @@ belmont/
 │       ├── implementation-agent.md  # Implementation agent
 │       ├── verification-agent.md    # Verification agent
 │       └── core-review-agent.md     # Code review agent
+├── scripts/
+│   ├── build.sh                 # Build with embedded content + version injection
+│   └── release.sh               # Prepare release (changelog + tag)
+├── .github/
+│   └── workflows/
+│       └── release.yml          # CI: cross-compile + publish on tag push
+├── install.sh                   # Public installer (curl | sh)
 ├── bin/
-│   ├── install.sh               # Installer script (macOS/Linux)
-│   └── install.ps1              # Installer script (Windows)
+│   ├── install.sh               # Dev installer (macOS/Linux)
+│   └── install.ps1              # Dev installer (Windows)
+├── CHANGELOG.md
 └── README.md
 ```
 
@@ -913,20 +930,45 @@ Reviews code for quality and alignment:
 
 ## Updating Belmont
 
-To update skills and agents in an existing project after pulling new changes to the belmont repo:
+### Self-update (recommended)
+
+```bash
+belmont update
+```
+
+This downloads the latest release binary from GitHub and replaces the current one. If you're in a project directory (`.belmont/` exists), it automatically re-runs `belmont install` to update skills and agents.
+
+```bash
+belmont update --check    # Check for updates without installing
+belmont update --force    # Force update even if same version
+```
+
+### Re-install skills in a project
+
+To refresh skills and agents without updating the CLI:
 
 ```bash
 cd ~/your-project
 belmont install
 ```
 
-The installer detects changes between the belmont source and your installed files:
+The installer detects changes between the embedded (or source) files and your installed files:
 - **New files** are copied
 - **Changed files** are updated
 - **Renamed/deleted files** are removed from the target (keeps installed tree exact)
 - **Unchanged files** are skipped
 - **Symlinks** are verified and updated if needed
 - `.belmont/` state files (PRD, PROGRESS, TECH_PLAN) are always preserved
+
+### Developer updates
+
+If you cloned the repo and built from source:
+
+```bash
+cd /path/to/belmont
+git pull
+./scripts/build.sh
+```
 
 ---
 
@@ -942,11 +984,10 @@ echo $PATH | tr ':' '\n' | grep local
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Or re-run the global setup:
+Or re-run the installer:
 
 ```bash
-cd /path/to/belmont
-./bin/install.sh --setup
+curl -fsSL https://raw.githubusercontent.com/blake-simpson/belmont/main/install.sh | sh
 ```
 
 ### No AI tools detected during install
@@ -1004,7 +1045,8 @@ Run the reset skill (`/belmont:reset` in Claude Code) to reset all state files. 
 
 - An AI coding tool (Claude Code, Codex, Cursor, Windsurf, Gemini, Copilot, or any tool that reads markdown)
 - [figma-mcp](https://github.com/nichochar/figma-mcp) (recommended) -- enables Belmont to load Figma designs, extract design tokens, and perform visual verification
-- Go (for building the CLI during install)
+- No Go required (pre-built binaries)
 - No Docker required
 - No Python required
-- bash (for the installer only)
+
+**For contributors**: Go 1.21+ is needed to build from source. See [Developer Setup](#developer-setup-contributors).

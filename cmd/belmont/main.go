@@ -2,22 +2,30 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const version = "0.1.0"
+var (
+	Version   = "dev"
+	CommitSHA = "unknown"
+	BuildDate = "unknown"
+)
 
 type taskStatus string
 
@@ -83,6 +91,16 @@ type config struct {
 }
 
 func main() {
+	// Clean up old binary on Windows after self-update
+	if runtime.GOOS == "windows" {
+		if exe, err := os.Executable(); err == nil {
+			old := exe + ".old"
+			if _, err := os.Stat(old); err == nil {
+				os.Remove(old)
+			}
+		}
+	}
+
 	if len(os.Args) < 2 {
 		printUsage(os.Stderr)
 		os.Exit(1)
@@ -99,8 +117,10 @@ func main() {
 		must(runSearch(os.Args[2:]))
 	case "install":
 		must(runInstall(os.Args[2:]))
+	case "update":
+		must(runUpdate(os.Args[2:]))
 	case "version":
-		fmt.Println(version)
+		fmt.Printf("belmont %s (%s, %s)\n", Version, CommitSHA, BuildDate)
 	case "help", "-h", "--help":
 		printUsage(os.Stdout)
 	default:
@@ -116,6 +136,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  belmont install [--source PATH] [--project PATH] [--tools all|none|claude,codex,...]")
+	fmt.Fprintln(w, "  belmont update [--check] [--force]")
 	fmt.Fprintln(w, "  belmont status [--root PATH] [--format text|json]")
 	fmt.Fprintln(w, "  belmont tree [--root PATH] [--max-depth N] [--max-entries N] [--format text|json]")
 	fmt.Fprintln(w, "  belmont find --name QUERY [--root PATH] [--regex] [--type file|dir|any] [--limit N] [--format text|json]")
@@ -804,10 +825,8 @@ func runInstall(args []string) error {
 		return err
 	}
 
-	sourceRoot, err := resolveSourceRoot(source)
-	if err != nil {
-		return err
-	}
+	// Determine mode: embedded (release binary) vs source (developer)
+	useEmbedded := (source == "" && os.Getenv("BELMONT_SOURCE") == "") && hasEmbeddedFiles
 
 	fmt.Println("Belmont Project Setup")
 	fmt.Println("=====================")
@@ -820,24 +839,43 @@ func runInstall(args []string) error {
 		return err
 	}
 
-	agentsSource := filepath.Join(sourceRoot, "agents", "belmont")
-	skillsSource := filepath.Join(sourceRoot, "skills", "belmont")
+	if useEmbedded {
+		fmt.Println("Installing agents to .agents/belmont/...")
+		if err := syncEmbeddedDir(embeddedAgents, "agents/belmont", filepath.Join(projectRoot, ".agents", "belmont")); err != nil {
+			return err
+		}
+		fmt.Println("")
 
-	if !dirExists(agentsSource) || !dirExists(skillsSource) {
-		return fmt.Errorf("install: source missing agents/ or skills/ in %s", sourceRoot)
-	}
+		fmt.Println("Installing skills to .agents/skills/belmont/...")
+		if err := syncEmbeddedDir(embeddedSkills, "skills/belmont", filepath.Join(projectRoot, ".agents", "skills", "belmont")); err != nil {
+			return err
+		}
+		fmt.Println("")
+	} else {
+		sourceRoot, err := resolveSourceRoot(source)
+		if err != nil {
+			return err
+		}
 
-	fmt.Println("Installing agents to .agents/belmont/...")
-	if err := syncMarkdownDir(agentsSource, filepath.Join(projectRoot, ".agents", "belmont")); err != nil {
-		return err
-	}
-	fmt.Println("")
+		agentsSource := filepath.Join(sourceRoot, "agents", "belmont")
+		skillsSource := filepath.Join(sourceRoot, "skills", "belmont")
 
-	fmt.Println("Installing skills to .agents/skills/belmont/...")
-	if err := syncMarkdownDir(skillsSource, filepath.Join(projectRoot, ".agents", "skills", "belmont")); err != nil {
-		return err
+		if !dirExists(agentsSource) || !dirExists(skillsSource) {
+			return fmt.Errorf("install: source missing agents/ or skills/ in %s", sourceRoot)
+		}
+
+		fmt.Println("Installing agents to .agents/belmont/...")
+		if err := syncMarkdownDir(agentsSource, filepath.Join(projectRoot, ".agents", "belmont")); err != nil {
+			return err
+		}
+		fmt.Println("")
+
+		fmt.Println("Installing skills to .agents/skills/belmont/...")
+		if err := syncMarkdownDir(skillsSource, filepath.Join(projectRoot, ".agents", "skills", "belmont")); err != nil {
+			return err
+		}
+		fmt.Println("")
 	}
-	fmt.Println("")
 
 	if containsTool(selectedTools, "codex") {
 		fmt.Println("Updating AGENTS.md for Codex skill routing...")
@@ -1836,4 +1874,297 @@ func containsTool(tools []string, name string) bool {
 		}
 	}
 	return false
+}
+
+// syncEmbeddedDir mirrors syncMarkdownDir but reads from an embed.FS.
+func syncEmbeddedDir(embedFS embed.FS, root string, targetDir string) error {
+	if err := ensureDir(targetDir); err != nil {
+		return err
+	}
+
+	entries, err := fs.ReadDir(embedFS, root)
+	if err != nil {
+		return err
+	}
+
+	sourceNames := make(map[string]struct{})
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		if entry.Name() == "SKILL.md" {
+			continue
+		}
+		sourceNames[entry.Name()] = struct{}{}
+		data, err := fs.ReadFile(embedFS, root+"/"+entry.Name())
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(targetDir, entry.Name())
+		if fileExists(dest) {
+			existing, err := os.ReadFile(dest)
+			if err != nil {
+				return err
+			}
+			if string(existing) == string(data) {
+				fmt.Printf("  = %s (unchanged)\n", entry.Name())
+				continue
+			}
+			fmt.Printf("  ~ %s (updated)\n", entry.Name())
+		} else {
+			fmt.Printf("  + %s\n", entry.Name())
+		}
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(dest, data, 0o644); err != nil {
+			return err
+		}
+	}
+
+	// Clean stale files
+	targetEntries, err := os.ReadDir(targetDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range targetEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		if _, ok := sourceNames[entry.Name()]; !ok {
+			fmt.Printf("  - %s (removed, no longer in source)\n", entry.Name())
+			if err := os.Remove(filepath.Join(targetDir, entry.Name())); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// --- Update command ---
+
+type githubRelease struct {
+	TagName string        `json:"tag_name"`
+	Body    string        `json:"body"`
+	Assets  []githubAsset `json:"assets"`
+}
+
+type githubAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+}
+
+func runUpdate(args []string) error {
+	fsFlags := flag.NewFlagSet("update", flag.ContinueOnError)
+	fsFlags.SetOutput(io.Discard)
+	var check bool
+	var force bool
+	fsFlags.BoolVar(&check, "check", false, "check for updates without installing")
+	fsFlags.BoolVar(&force, "force", false, "force update even if same version")
+	if err := fsFlags.Parse(args); err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
+
+	if Version == "dev" {
+		return errors.New("update: development build detected — use git pull && scripts/build.sh to update")
+	}
+
+	release, err := fetchLatestRelease()
+	if err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
+
+	if !force && !isNewer(release.TagName, "v"+Version) {
+		fmt.Printf("Already up to date (v%s)\n", Version)
+		return nil
+	}
+
+	if check {
+		fmt.Printf("Update available: v%s → %s\n", Version, release.TagName)
+		if release.Body != "" {
+			fmt.Println("\nRelease notes:")
+			fmt.Println(release.Body)
+		}
+		return nil
+	}
+
+	assetName := fmt.Sprintf("belmont-%s-%s", runtime.GOOS, runtime.GOARCH)
+	if runtime.GOOS == "windows" {
+		assetName += ".exe"
+	}
+
+	var downloadURL string
+	for _, asset := range release.Assets {
+		if asset.Name == assetName {
+			downloadURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+	if downloadURL == "" {
+		return fmt.Errorf("update: no binary found for %s/%s in release %s", runtime.GOOS, runtime.GOARCH, release.TagName)
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
+	exePath, err = filepath.EvalSymlinks(exePath)
+	if err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
+
+	if err := checkWriteAccess(filepath.Dir(exePath)); err != nil {
+		return fmt.Errorf("update: cannot write to %s — try running with sudo or reinstall to ~/.local/bin", filepath.Dir(exePath))
+	}
+
+	fmt.Printf("Downloading %s...\n", assetName)
+	tmpPath := exePath + ".tmp"
+	if err := downloadFile(downloadURL, tmpPath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("update: download failed: %w", err)
+	}
+
+	if err := os.Chmod(tmpPath, 0o755); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	// Replace self — on Windows, rename current to .old first
+	if runtime.GOOS == "windows" {
+		oldPath := exePath + ".old"
+		os.Remove(oldPath)
+		if err := os.Rename(exePath, oldPath); err != nil {
+			os.Remove(tmpPath)
+			return fmt.Errorf("update: %w", err)
+		}
+	}
+	if err := os.Rename(tmpPath, exePath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("update: %w", err)
+	}
+
+	fmt.Printf("\nUpdated: v%s → %s\n", Version, release.TagName)
+	if release.Body != "" {
+		fmt.Println("\nRelease notes:")
+		fmt.Println(release.Body)
+	}
+
+	// Auto-install if .belmont/ exists in cwd
+	if dirExists(filepath.Join(".", ".belmont")) {
+		fmt.Println("\nRe-installing skills and agents...")
+		cmd := exec.Command(exePath, "install", "--no-prompt", "--tools", "all")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Auto-install failed: %v\nRun 'belmont install' manually.\n", err)
+		}
+	} else {
+		fmt.Println("\nTo update skills in a project: cd ~/your-project && belmont install")
+	}
+
+	return nil
+}
+
+func fetchLatestRelease() (*githubRelease, error) {
+	url := "https://api.github.com/repos/blake-simpson/belmont/releases/latest"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach GitHub (are you offline?): %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 403 || resp.StatusCode == 429 {
+		return nil, fmt.Errorf("GitHub API rate limited — set GITHUB_TOKEN env var to authenticate")
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
+	}
+
+	var release githubRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, err
+	}
+	return &release, nil
+}
+
+func downloadFile(url, dest string) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download returned HTTP %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func checkWriteAccess(dir string) error {
+	tmp := filepath.Join(dir, ".belmont-update-check")
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	f.Close()
+	os.Remove(tmp)
+	return nil
+}
+
+func parseSemver(v string) (int, int, int, bool) {
+	v = strings.TrimPrefix(v, "v")
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) != 3 {
+		return 0, 0, 0, false
+	}
+	major, err1 := strconv.Atoi(parts[0])
+	minor, err2 := strconv.Atoi(parts[1])
+	patch, err3 := strconv.Atoi(parts[2])
+	if err1 != nil || err2 != nil || err3 != nil {
+		return 0, 0, 0, false
+	}
+	return major, minor, patch, true
+}
+
+func isNewer(remote, local string) bool {
+	rMaj, rMin, rPat, ok1 := parseSemver(remote)
+	lMaj, lMin, lPat, ok2 := parseSemver(local)
+	if !ok1 || !ok2 {
+		return true
+	}
+	if rMaj != lMaj {
+		return rMaj > lMaj
+	}
+	if rMin != lMin {
+		return rMin > lMin
+	}
+	return rPat > lPat
 }

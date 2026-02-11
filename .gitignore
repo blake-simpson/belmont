@@ -1,0 +1,7 @@
+# Build output
+dist/
+belmont
+
+# Embedded content (copied by build script, cleaned up after)
+cmd/belmont/skills/
+cmd/belmont/agents/

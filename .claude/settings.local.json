@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/blake/code/personal/belmont log --oneline)",
+      "Bash(git -C /Users/blake/code/personal/belmont describe --tags)",
+      "Bash(wc:*)",
+      "Bash(git -C /Users/blake/code/personal/belmont log --oneline -50)",
+      "Bash(go build:*)",
+      "Bash(./scripts/build.sh:*)",
+      "Bash(/Users/blake/code/personal/belmont/dist/belmont-darwin-arm64:*)",
+      "Bash(git status:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
