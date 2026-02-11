@@ -4,6 +4,47 @@
 
 **Released:** 2026-02-11
 
+### Changes
+
+- Re-build Belmont binary + installation process. Allow for seamless updates.
+- Stop status trying to find local version of .bin
+- Update README
+- Improved handling of Claude + Codex in same project
+- Move installer to go, Add windows support, Add helpers, Update docs
+- Fixes for Codex install
+- Belmont guardrails and testing
+- Refine sub-agent workflow
+- Remove DoD from progress file
+- Allow Belmont to take advantage of agent teams/swarms when avaialable
+- Move to milestones file to help save context
+- Allow Belmont to work with other package managers
+- Add Codex support
+- Specify Claude models for sub-agents
+- Prevent overwrite of existing plan
+- Belmont V1
+- Updates
+- Allow easy addition of ralph executors to host project
+- New multi-agent based workflow - testing for results + token usage
+- Attempt build without sub-agent to test difference in output/token use
+- Add Playwright MCP in headless mode to sandbox for UI verification
+- testing more prompt changes
+- More refinements. Simplify PRD. Favour tech plan to save context.
+- make skills loading more generic and focused. Allow model to decide.
+- Fix AFK logic
+- Refactor system to use local project directory
+- sub-agent updates
+- Add tech plan review stage
+- Fixes to status command
+- Add escape hatch
+- Updated PRD + Progress formats
+- Initial ralph setup
+
+
+
+## v0.2.0
+
+**Released:** 2026-02-11
+
 ### Highlights
 
 - **Single-command install**: `curl -fsSL https://raw.githubusercontent.com/blake-simpson/belmont/main/install.sh | sh`
