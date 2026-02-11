@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.2
+
+**Released:** 2026-02-11
+
+### Changes since v0.3.1
+
+- Refactor to allow skills generation. Adds strategies to remove token input.
+
+
+
 ## v0.3.1
 
 **Released:** 2026-02-11
