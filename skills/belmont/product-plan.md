@@ -50,9 +50,10 @@ Before planning, read `.belmont/PRD.md` and `.belmont/PROGRESS.md`.
 3. Use the AskUserQuestion tool to ask clarifying questions (ONE AT A TIME) until fully understood
 4. Consider edge cases, dependencies, blockers
 5. Be proactive and suggest questions to ask the user if they are not clear on something.
-6. If Figma design URLs are included, spawn a belmont design-agent sub-agent (with the identity preamble and mandatory `.agents/belmont/design-agent.md` read) to assess them. Extract design context and add exact Figma URLs to the PRD for future agents to use
+6. If Figma design URLs are included, spawn a sub-agent to assess them. Extract design context and add exact Figma URLs to the PRD for future agents to use
 7. Perform deep research on topics that are not clear
 8. Ask the user if they are happy to finalize the plan or if they have more questions
+9. Break the feature down into implementable milestones and tasks. Keep milestones small and focused. Consider grouping tasks together that are related or can be completed in a single session.
 9. Write the finalized PRD.md and PROGRESS.md (in UPDATE mode, only add/modify — never replace)
 10. Exit - do NOT start implementation
 
@@ -65,7 +66,8 @@ Final: Prompt user to "/clear" and then "/belmont:tech-plan"
 - Detect blockers/dependencies on tasks and ensure blockers are addressed first
 - Always consider that the follow-up implementation agents communicate through a MILESTONE file. The orchestrator extracts relevant PRD context into this file, and each agent reads from it. Ensure the PRD contains all necessary detail so the orchestrator and agents can extract what they need.
 - It is critical that agents get every piece of information they need
-- List in the plan the relevant skills the agent should load when implementing
+- List in the plan the relevant available skills the agent should load when implementing
+- When creating milestones, consider the work involved. For example: If design/UI work is required, group it with other design/UI work. This allows the design context to be loaded once and shared amongst that milestones tasks. By the same logic, group backend heavy tasks together and try to skip UI work for that milestone. Some tasks will need both but try your best to split where possible.
 
 ## PRD Format
 

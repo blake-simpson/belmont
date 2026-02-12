@@ -128,13 +128,15 @@ Use the dispatch method you selected in "Choosing Your Dispatch Method" above. F
 
 ### Phase 3: Implementation (implementation-agent) — *runs after Phases 1 and 2*
 
-**Purpose**: Implement ALL tasks using the accumulated context in the MILESTONE file.
+**Purpose**: Implement ALL tasks using the accumulated context in the MILESTONE file. Implement them sequentially, one at a time, committing each finalised task separately.
 
-**Spawn a sub-agent with this prompt**:
+If you are NOT using Agent Teams: Spawn a sub-agent with this prompt:
 
 <!-- @include identity-preamble.md agent_role="implementation" agent_file="implementation-agent.md" -->
 >
 > The MILESTONE file is at `.belmont/MILESTONE.md`. Read it, then follow your instructions.
+
+If you ARE using Agent Teams: Add an implementation-agent into the team per task in the milestone, with the same prompt as above. Use the team-lead to coordinate between them if they need to edit the same areas fo the codebase.
 
 **Wait for**: Sub-agent to complete with all tasks implemented, verified, and committed. Verify that `## Implementation Log` in the MILESTONE file has been populated.
 
@@ -147,10 +149,12 @@ Read the `## Implementation Log` section from `.belmont/MILESTONE.md`. For each 
 1. **Verify tracking updates** — The implementation agent should have already marked tasks in PRD.md and PROGRESS.md. If any were missed, update them now.
 2. **Handle follow-up tasks** — If the implementation log listed out-of-scope issues:
    - Add them as new FWLUP tasks to `.belmont/PRD.md`
-   - Add them to the appropriate milestone in `.belmont/PROGRESS.md`
+   - Add them to a milestone in `.belmont/PROGRESS.md`:
+     - If they relate to existing tasks in an existing milestone, add them to that milestone
+     - If they are not related to any existing tasks, create a **new milestone** with the next sequential number (e.g., if implementing M9, create `### ⬜ M10: Follow-ups`) and add them there
 3. **Handle blocked tasks** — If any tasks were reported as blocked during implementation:
    - Ensure they are marked 🚫 BLOCKED in PRD.md with the reason
-   - Add blocker details to the Blockers section in PROGRESS.md
+   - Add blocker details to the Blockers section in PROGRESS.md. This should include the task ID and the reason it was blocked.
 
 ## Step 5: After Milestone Completes
 

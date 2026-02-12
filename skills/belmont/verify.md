@@ -205,8 +205,12 @@ If any issues were found by either agent:
    **Verification**:
    1. [Steps to verify the fix]
    ```
-2. Add the follow-up tasks to the appropriate milestone in `.belmont/PROGRESS.md`
+2. Add the follow-up tasks to a milestone in `.belmont/PROGRESS.md`:
+   - If a **pending** (⬜) milestone exists, add them to the last pending milestone
+   - If **all milestones are complete** (✅), create a **new milestone** with the next sequential number (e.g., if M9 is the last, create `### ⬜ M10: Follow-ups`) and add them there
+   - Follow-up tasks MUST live inside a milestone heading — never in a freestanding section outside the milestones structure
 3. If critical issues were found, update the overall status to reflect this
+4. If a new milestone was created, revert the overall status from `✅ Complete` to `🟡 In Progress`
 
 ### Report Summary
 
