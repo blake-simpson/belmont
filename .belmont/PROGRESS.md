@@ -42,12 +42,12 @@
 
 ### M4: Skills + composer + standalone fixture
 
-- [ ] P0-1 8 skill bodies (working-backwards, plan, next, implement, verify, status, prototype, debug)
-- [ ] P0-2 Composer: read canonical, expand @include, validate frontmatter, copy referenced files
-- [ ] P0-3 bin/belmont-skills script for standalone install
-- [ ] P0-4 CI gates: static grep blocklist, runtime fixture, line-count cap (≤250 LOC)
-- [ ] P0-5 _shared/harness-optional.md inlined into every skill
-- [ ] P1-1 Compatibility matrix doc
+- [x] P0-1 8 skill bodies (working-backwards, plan, next, implement, verify, status, prototype, debug)
+- [x] P0-2 Composer: read canonical, expand @include, validate frontmatter, copy referenced files
+- [x] P0-3 bin/belmont-skills script for standalone install
+- [x] P0-4 CI gates: static grep blocklist, line-count cap (≤250 LOC) (runtime fixture deferred to M11)
+- [x] P0-5 _shared/harness-optional.md inlined into every skill
+- [x] P1-1 Compatibility matrix doc
 
 ### M5: State machine + scope guards + preflight validate
 

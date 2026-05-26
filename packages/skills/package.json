@@ -6,13 +6,16 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "belmont-skills": "bin/belmont-skills"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist/", "src/skills/", "bin/"],
+  "files": ["dist/", "src/", "bin/"],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"

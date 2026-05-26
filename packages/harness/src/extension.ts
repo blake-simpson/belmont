@@ -10,8 +10,12 @@
 //                         covers both interactive + auto in pi 0.75.5)
 //   - /belmont:status, /belmont:init, /belmont:models  (doctor subcmd)
 //
+// M4 wiring (now):
+//   - 7 LLM-dispatched skill commands routed via pi.sendUserMessage
+//     (status keeps the deterministic M3 renderer; standalone status
+//     SKILL.md exists for vanilla CLI hosts) — see commands/skills.ts.
+//
 // Future milestones extend this file:
-//   - M4: more slash commands for the 8 skills
 //   - M5: belmont_transition tool + tool_call/turn_start/turn_end hooks
 //   - M6: side panel (ctx.ui.custom) + status bar + shortcuts
 //   - M7: per-agent tier resolution + provider registration
@@ -20,6 +24,7 @@
 import type { ExtensionAPI } from "./pi/sdk.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerModelsCommand } from "./commands/models.js";
+import { registerSkillCommands } from "./commands/skills.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { appendBelmontContext } from "./hooks/system-prompt.js";
 import { refreshSnapshot } from "./state/snapshot.js";
@@ -28,6 +33,7 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
   registerStatusCommand(pi);
   registerInitCommand(pi);
   registerModelsCommand(pi);
+  registerSkillCommands(pi);
 
   pi.on("session_start", async (_event, ctx) => {
     await refreshSnapshot(ctx.cwd);
