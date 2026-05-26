@@ -24,12 +24,12 @@
 
 ### M2: Knowledge schema
 
-- [ ] P0-1 PROGRESS.md byte-faithful parser (parseProgress)
-- [ ] P0-2 Transition state machine (applyTransition)
-- [ ] P0-3 Frontmatter parser + validators for BELMONT/preferences/PRD/ADR/subsystem/episodic
-- [ ] P0-4 validateProjectedKnowledgeWrite with rejection texts + suggestion generator scaffold
-- [ ] P0-5 parseMilestoneOverlay token grammar + golden fixtures
-- [ ] P1-1 Markdown golden fixtures
+- [x] P0-1 PROGRESS.md byte-faithful parser (parseProgress)
+- [x] P0-2 Transition state machine (applyTransition)
+- [x] P0-3 Frontmatter parser + validators for BELMONT/preferences/PRD/ADR/subsystem/episodic
+- [x] P0-4 validateProjectedKnowledgeWrite with rejection texts + suggestion generator scaffold
+- [x] P0-5 parseMilestoneOverlay token grammar + golden fixtures
+- [x] P1-1 Markdown golden fixtures
 
 ### M3: Harness shell + boot doctor
 

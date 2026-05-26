@@ -1,5 +1,5 @@
 ---
-schema: belmont.episodic.v1
+schema: belmont.episode.v1
 date: 2026-05-26
 phase: M1
 ---

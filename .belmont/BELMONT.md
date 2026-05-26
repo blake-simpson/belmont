@@ -99,6 +99,7 @@ choice — treat as read-only.
 | Topic | Kind | File | Read when |
 |---|---|---|---|
 | oh-my-pi evaluation | ADR | memory/decisions/D-001-omp-evaluation.md | tempted to adopt omp as base or its leaf packages |
+| Episodic filename grammar | ADR | memory/decisions/D-002-episodic-filename-grammar.md | adding rules to `validateProjectedKnowledgeWrite` for memory/episodic/ filenames |
 | Stack (TS / pnpm / Node / pi / deps) | Stack singleton | memory/stack.md | choosing a library or major upgrade |
 
 > Subsystem entries are written by the `verify` skill as milestones
