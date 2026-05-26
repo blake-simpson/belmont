@@ -51,11 +51,11 @@
 
 ### M5: State machine + scope guards + preflight validate
 
-- [ ] P0-1 belmont_transition registration + applyTransition wiring
-- [ ] P0-2 tool_call hook: PROGRESS direct-write block + knowledge-cap + suggestion
-- [ ] P0-3 turn_start snapshot + turn_end diff revert
-- [ ] P0-4 Episodic event writes
-- [ ] P0-5 belmont validate CLI subcommand + auto-loop preflight wiring
+- [x] P0-1 belmont_transition registration + applyTransition wiring
+- [x] P0-2 tool_call hook: PROGRESS direct-write block + knowledge-cap + suggestion
+- [x] P0-3 turn_start snapshot + turn_end diff revert
+- [x] P0-4 Episodic event writes
+- [x] P0-5 belmont validate CLI subcommand + auto-loop preflight wiring
 
 ### M6: TUI panel + status + hotkeys + ctx-weight indicator
 

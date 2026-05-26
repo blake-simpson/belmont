@@ -10,13 +10,23 @@
 //                         covers both interactive + auto in pi 0.75.5)
 //   - /belmont:status, /belmont:init, /belmont:models  (doctor subcmd)
 //
-// M4 wiring (now):
+// M4 wiring:
 //   - 7 LLM-dispatched skill commands routed via pi.sendUserMessage
 //     (status keeps the deterministic M3 renderer; standalone status
 //     SKILL.md exists for vanilla CLI hosts) — see commands/skills.ts.
 //
+// M5 wiring (now):
+//   - belmont_transition / belmont_episode_event / belmont_ask_user
+//     tools (the harness side of the contract every SKILL.md is
+//     written against).
+//   - tool_call hook (hooks/knowledge-guard.ts) blocking direct writes
+//     to .belmont/PROGRESS.md + knowledge-cap violations with a JSON
+//     reason envelope { message, suggestion }.
+//   - turn_start / turn_end hook (hooks/scope-guard.ts) snapshotting
+//     .belmont/ and reverting unclassified-path / steering-zone /
+//     knowledge-deletion mutations.
+//
 // Future milestones extend this file:
-//   - M5: belmont_transition tool + tool_call/turn_start/turn_end hooks
 //   - M6: side panel (ctx.ui.custom) + status bar + shortcuts
 //   - M7: per-agent tier resolution + provider registration
 //   - M8: auto loop wiring + worker message renderer
@@ -26,14 +36,26 @@ import { registerInitCommand } from "./commands/init.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerSkillCommands } from "./commands/skills.js";
 import { registerStatusCommand } from "./commands/status.js";
+import { registerKnowledgeGuard } from "./hooks/knowledge-guard.js";
+import { registerScopeGuard } from "./hooks/scope-guard.js";
 import { appendBelmontContext } from "./hooks/system-prompt.js";
 import { refreshSnapshot } from "./state/snapshot.js";
+import { registerBelmontAskUserTool } from "./tools/belmont-ask-user.js";
+import { registerBelmontEpisodeEventTool } from "./tools/belmont-episode-event.js";
+import { registerBelmontTransitionTool } from "./tools/belmont-transition.js";
 
 export const belmontExtension = (pi: ExtensionAPI): void => {
   registerStatusCommand(pi);
   registerInitCommand(pi);
   registerModelsCommand(pi);
   registerSkillCommands(pi);
+
+  registerBelmontTransitionTool(pi);
+  registerBelmontEpisodeEventTool(pi);
+  registerBelmontAskUserTool(pi);
+
+  registerKnowledgeGuard(pi);
+  registerScopeGuard(pi);
 
   pi.on("session_start", async (_event, ctx) => {
     await refreshSnapshot(ctx.cwd);

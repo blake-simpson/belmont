@@ -7,5 +7,6 @@
 
 export { run, runWith, type CliResult } from "./run.js";
 export { cmdInit } from "./init.js";
+export { cmdValidate } from "./validate.js";
 
 export const PACKAGE_NAME = "@belmont/cli";

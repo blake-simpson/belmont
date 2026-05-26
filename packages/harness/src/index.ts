@@ -8,7 +8,7 @@ export { launchPi } from "./pi/launch.js";
 
 export const PACKAGE_NAME = "@belmont/harness";
 
-// CLI-facing surface (used by @belmont/cli's `init` subcommand).
+// CLI-facing surface (used by @belmont/cli's `init` + `validate` subcommands).
 export { scaffoldBelmontDir, type ScaffoldResult } from "./init/scaffold.js";
 export {
   runModelsDoctor,
@@ -19,3 +19,9 @@ export {
   type ModelsTier,
 } from "./tiering/doctor.js";
 export { renderStatus } from "./commands/status.js";
+export {
+  runBelmontValidate,
+  formatValidateReport,
+  extractPrdIndex,
+  type ValidateReport,
+} from "./validate.js";
