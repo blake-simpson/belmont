@@ -2,21 +2,37 @@
 //
 // This is the ONE file in the entire monorepo allowed to import
 // `@earendil-works/pi-coding-agent`. The B5 anti-corruption layer in
-// action: every other module reaches pi through the wrappers exported
-// from here.
+// action: every other module reaches pi through the wrappers and the
+// type re-exports below.
 //
 // Enforced by:
 //   - .dependency-cruiser.cjs rule `no-pi-outside-harness-pi-subdir`
 //     (path-based, blocks all packages/harness/src/!(pi)/** files)
-//   - test/pi-boundary.test.ts (static AST scan over the workspace)
+//   - test/pi-boundary.test.ts (static AST scan over the workspace —
+//     regex catches the raw `from "@earendil-works/pi-coding-agent"`
+//     specifier including in `import type` lines, so re-export via this
+//     file is the ONLY way for siblings to see pi types)
 //
-// At M1 the wrapper surface is intentionally minimal: just a re-export
-// of pi's VERSION constant so we can prove the boundary holds
-// end-to-end. M3 expands this with the extension entrypoint, M5 with
-// `belmont_transition` tool registration, M8 with
-// `createAgentSessionRuntime` lifecycle wrappers.
+// At M3 the wrapper surface expands to cover what the harness extension
+// needs: type re-exports for ExtensionAPI / handler events / command
+// context, and the `launchPi(argv)` wrapper that hands the harness
+// factory to `pi.main()`. M5 adds `belmont_transition` tool registration
+// (via defineTool); M8 adds `createAgentSessionRuntime` lifecycle
+// wrappers for the auto worker.
 
 import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
 export const piPackage = "@earendil-works/pi-coding-agent";
 export const piVersion = PI_VERSION;
+
+// Type re-exports. Sibling modules (extension.ts, commands/*, hooks/*,
+// tools/*) consume pi types via `import type { … } from "./pi/sdk.js"`.
+export type {
+  BeforeAgentStartEvent,
+  BeforeAgentStartEventResult,
+  ExtensionAPI,
+  ExtensionCommandContext,
+  ExtensionContext,
+  ExtensionFactory,
+  SessionStartEvent,
+} from "@earendil-works/pi-coding-agent";

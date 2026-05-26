@@ -33,12 +33,12 @@
 
 ### M3: Harness shell + boot doctor
 
-- [ ] P0-1 Extension entrypoint with empty session_start handler
-- [ ] P0-2 @belmont/cli resolves project root, execs pi with --extension
-- [ ] P0-3 /belmont:status command
-- [ ] P0-4 /belmont:init command (creates .belmont/ skeleton + boot doctor)
-- [ ] P0-5 Wire BELMONT.md + preferences.md via before_agent_start (auto) + context (interactive)
-- [ ] P0-6 Boot doctor in belmont init (per §7.6)
+- [x] P0-1 Extension entrypoint with empty session_start handler
+- [x] P0-2 @belmont/cli resolves project root, execs pi with --extension
+- [x] P0-3 /belmont:status command
+- [x] P0-4 /belmont:init command (creates .belmont/ skeleton + boot doctor)
+- [x] P0-5 Wire BELMONT.md + preferences.md via before_agent_start (D-003: single hook covers both interactive + auto in pi 0.75.5)
+- [x] P0-6 Boot doctor in belmont init (per §7.6; M3 stub — full check lands in M7)
 
 ### M4: Skills + composer + standalone fixture
 

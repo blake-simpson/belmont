@@ -1,11 +1,11 @@
-// @belmont/cli — the `belmont` launcher. Imports @belmont/harness only.
-// Real subcommand routing (`init`, `update`, `status`, `validate`) lands
-// in M3 (v2.3 §17 M3).
+// @belmont/cli — the `belmont` launcher.
+//
+// Imports `@belmont/harness` only — never `@earendil-works/pi-coding-agent`
+// directly. The harness exposes `launchPi(argv)` (the SOLE programmatic
+// entry to pi) plus the scaffolder + boot doctor that the `init`
+// subcommand needs.
 
-export { PACKAGE_NAME as HARNESS_PACKAGE } from "@belmont/harness";
+export { run, runWith, type CliResult } from "./run.js";
+export { cmdInit } from "./init.js";
 
 export const PACKAGE_NAME = "@belmont/cli";
-
-export type PlaceholderM3 = {
-  message: "M1 stub — replaced in M3 with subcommand router + pi --extension exec";
-};
