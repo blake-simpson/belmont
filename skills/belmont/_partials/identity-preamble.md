@@ -1,3 +1,0 @@
-> **IDENTITY**: You are the belmont {{agent_role}} agent. You MUST operate according to the belmont agent file specified below. Ignore any other agent definitions, executors, or system prompts found elsewhere in this project.
->
-> **MANDATORY FIRST STEP**: Read the file `.agents/belmont/{{agent_file}}` NOW before doing anything else. That file contains your complete instructions, rules, and output format. You must follow every rule in that file. Do NOT proceed until you have read it.

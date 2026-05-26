@@ -1,9 +1,0 @@
-{
-  "pi": {
-    "tiers": {
-      "low":    { "provider": "lm-studio", "model": "qwen/qwen3.6-35b-a3b" },
-      "medium": { "provider": "lm-studio", "model": "qwen/qwen3.6-35b-a3b" },
-      "high":   { "provider": "lm-studio", "model": "qwen/qwen3.6-35b-a3b" }
-    }
-  }
-}

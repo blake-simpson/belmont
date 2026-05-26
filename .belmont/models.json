@@ -1,0 +1,29 @@
+{
+  "_comment": "Belmont's own models.json (the rebuild dogfoods this). Schema per §9.1. Resolution order: CLI flag > milestone overlay (PROGRESS.md HTML comment) > project default (this file) > tier base. Authored at M7; treat as TEMPLATE until then.",
+  "schema": "belmont.models.v1",
+  "tiers": {
+    "high": {
+      "provider": "anthropic",
+      "model": "claude-opus-4-7",
+      "thinking": "high"
+    },
+    "medium": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "thinking": "medium"
+    },
+    "low": {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5",
+      "thinking": "low"
+    }
+  },
+  "agents": {
+    "codebase": "medium",
+    "design": "high",
+    "implementation": "medium",
+    "verification": "high",
+    "code-review": "medium",
+    "reconciliation": "high"
+  }
+}
