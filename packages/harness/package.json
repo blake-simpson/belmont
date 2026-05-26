@@ -1,0 +1,28 @@
+{
+  "name": "@belmont/harness",
+  "version": "0.0.0",
+  "description": "Belmont harness — the SOLE importer of @earendil-works/pi-coding-agent (B5 trust boundary). Hooks, tools, TUI, auto loop, MCP bridge, tiering.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist/"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@belmont/knowledge-schema": "workspace:*",
+    "@belmont/skills": "workspace:*",
+    "@earendil-works/pi-coding-agent": "0.75.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

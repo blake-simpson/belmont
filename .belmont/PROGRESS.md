@@ -12,15 +12,15 @@
 
 ### M1: Workspace bootstrap
 
-- [ ] P0-1 pnpm-workspace.yaml + root package.json + tsconfig.base.json
-- [ ] P0-2 Scaffold @belmont/knowledge-schema
-- [ ] P0-3 Scaffold @belmont/skills
-- [ ] P0-4 Scaffold @belmont/harness
-- [ ] P0-5 Scaffold @belmont/cli
-- [ ] P0-6 dependency-cruiser config enforcing cli→harness→skills→knowledge-schema
-- [ ] P0-7 GitHub Actions: pnpm install --frozen-lockfile && pnpm build && pnpm test
-- [ ] P0-8 test/pi-boundary.test.ts — only packages/harness/src/pi/*.ts may import pi
-- [ ] P1-1 apps/docs/ placeholder
+- [x] P0-1 pnpm-workspace.yaml + root package.json + tsconfig.base.json
+- [x] P0-2 Scaffold @belmont/knowledge-schema
+- [x] P0-3 Scaffold @belmont/skills
+- [x] P0-4 Scaffold @belmont/harness (sole pi importer via src/pi/sdk.ts)
+- [x] P0-5 Scaffold @belmont/cli (bin/belmont stub)
+- [x] P0-6 dependency-cruiser config enforcing cli→harness→skills→knowledge-schema (+ not-to-unresolvable + not-to-pi-by-package-name belt-and-braces)
+- [x] P0-7 GitHub Actions: pnpm install --frozen-lockfile && pnpm build && pnpm test
+- [x] P0-8 test/pi-boundary.test.ts — only packages/harness/src/pi/*.ts may import pi (static AST scan, regex matches `from`/`import`/`require`/`import()` with whitespace)
+- [x] P1-1 apps/docs/ placeholder
 
 ### M2: Knowledge schema
 

@@ -1,0 +1,23 @@
+{
+  "name": "@belmont/knowledge-schema",
+  "version": "0.0.0",
+  "description": "Belmont knowledge-schema — pure parsers, validators, transitions. Zero pi dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist/"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@belmont/skills",
+  "version": "0.0.0",
+  "description": "Belmont skills — canonical SKILL.md sources + composer + standalone installer (`npx @belmont/skills install`). Depends only on @belmont/knowledge-schema.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist/", "src/skills/", "bin/"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@belmont/knowledge-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

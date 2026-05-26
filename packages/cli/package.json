@@ -1,0 +1,29 @@
+{
+  "name": "@belmont/cli",
+  "version": "0.0.0",
+  "description": "Belmont CLI — the `belmont` launcher. Resolves project root, execs pi with --extension=@belmont/harness, plus init/update/status/validate subcommands.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "belmont": "./dist/bin/belmont.js"
+  },
+  "files": ["dist/", "bin/"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@belmont/harness": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

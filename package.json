@@ -1,0 +1,25 @@
+{
+  "name": "belmont-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Belmont v1.0 — pi-native coding harness. Monorepo root.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm dep-check && pnpm -r --filter=./packages/* build",
+    "test": "pnpm dep-check && vitest run",
+    "dep-check": "depcruise --config .dependency-cruiser.cjs packages",
+    "typecheck": "pnpm -r --filter=./packages/* typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "dependency-cruiser": "^17.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

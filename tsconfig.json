@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/knowledge-schema" },
+    { "path": "./packages/skills" },
+    { "path": "./packages/harness" },
+    { "path": "./packages/cli" }
+  ]
+}
