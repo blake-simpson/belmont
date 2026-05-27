@@ -2,10 +2,14 @@
 //
 // Static-AST guard for v2.3 §2 locked constraint #2:
 // "Only `@belmont/harness/src/pi/*.ts` may import
-// `@earendil-works/pi-coding-agent`."
+// `@earendil-works/pi-coding-agent`." M6 widens the boundary to also
+// cover `@earendil-works/pi-tui` — the TUI primitives layer pi-coding-
+// agent itself sits on. Both packages flow through pi/sdk.ts so the
+// harness has a single anti-corruption surface to swap if the
+// upstream package ever splits/renames.
 //
 // This is a belt + braces seal: `.dependency-cruiser.cjs` enforces the
-// same rule at build time (via `pnpm dep-check`), and this test
+// same rules at build time (via `pnpm dep-check`), and this test
 // re-verifies independently by walking the package source trees.
 
 import { readdir, readFile, stat } from "node:fs/promises";
@@ -25,9 +29,10 @@ const REPO_ROOT = join(HERE, "..");
 //   const pi = await import("@earendil-works/pi-coding-agent")
 // Requires whitespace between the keyword and the quote (which real
 // ESM/CJS imports always have); ignores prose mentions that aren't
-// quoted package specifiers.
+// quoted package specifiers. The capture group on the package name lets
+// the single regex catch both pi-coding-agent and pi-tui.
 const PI_IMPORT_RE =
-  /(?:\bfrom\s+|\brequire\s*\(\s*|\bimport\s*\(\s*|^\s*import\s+)["']@earendil-works\/pi-coding-agent(?:\/[^"']*)?["']/m;
+  /(?:\bfrom\s+|\brequire\s*\(\s*|\bimport\s*\(\s*|^\s*import\s+)["']@earendil-works\/(pi-coding-agent|pi-tui)(?:\/[^"']*)?["']/m;
 
 const ALLOWED_PREFIX = "packages/harness/src/pi/";
 
@@ -57,7 +62,7 @@ async function walkTsFiles(dir: string, out: string[] = []): Promise<string[]> {
 }
 
 describe("pi-boundary (B5 trust boundary)", () => {
-  it("rejects @earendil-works/pi-coding-agent imports outside packages/harness/src/pi/", async () => {
+  it("rejects @earendil-works/pi-coding-agent + pi-tui imports outside packages/harness/src/pi/", async () => {
     const stats = await stat(join(REPO_ROOT, "packages")).catch(() => null);
     expect(stats?.isDirectory(), "packages/ must exist").toBe(true);
 
@@ -83,15 +88,16 @@ describe("pi-boundary (B5 trust boundary)", () => {
         .join("\n");
       throw new Error(
         `pi-boundary violation — pi imports outside ${ALLOWED_PREFIX}:\n${msg}\n\n` +
-          `Only files under '${ALLOWED_PREFIX}' may import '@earendil-works/pi-coding-agent'. ` +
+          `Only files under '${ALLOWED_PREFIX}' may import '@earendil-works/pi-coding-agent' or '@earendil-works/pi-tui'. ` +
           `If you need pi functionality elsewhere, route it through a wrapper exported from packages/harness/src/pi/sdk.ts.`,
       );
     }
     expect(violations).toHaveLength(0);
   });
 
-  it("confirms the harness/pi/ allowlist DOES exercise the pi import (sanity)", async () => {
+  it("confirms the harness/pi/ allowlist DOES exercise the pi imports (sanity)", async () => {
     const sdk = await readFile(join(REPO_ROOT, "packages/harness/src/pi/sdk.ts"), "utf8");
     expect(sdk).toMatch(/@earendil-works\/pi-coding-agent/);
+    expect(sdk).toMatch(/@earendil-works\/pi-tui/);
   });
 });

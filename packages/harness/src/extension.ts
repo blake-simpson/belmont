@@ -15,7 +15,7 @@
 //     (status keeps the deterministic M3 renderer; standalone status
 //     SKILL.md exists for vanilla CLI hosts) — see commands/skills.ts.
 //
-// M5 wiring (now):
+// M5 wiring:
 //   - belmont_transition / belmont_episode_event / belmont_ask_user
 //     tools (the harness side of the contract every SKILL.md is
 //     written against).
@@ -26,14 +26,28 @@
 //     .belmont/ and reverting unclassified-path / steering-zone /
 //     knowledge-deletion mutations.
 //
+// M6 wiring (now):
+//   - tui/panel.ts                — side panel (ctx.ui.custom overlay)
+//                                   with j/k/Enter/a/v/Esc keymap.
+//   - tui/status-bar.ts           — 4-slot status bar +
+//                                   1s ctx-usage polling.
+//   - tui/shortcuts.ts            — Ctrl+B/O/L global hotkeys + the
+//                                   /belmont:auto input watcher that
+//                                   auto-opens the panel passively.
+//   - tui/widget-progress.ts      — above-editor progress widget
+//                                   helpers (M6 P1 stub; M8 wires data).
+//   - commands/repl-refresh.ts    — /belmont:repl-refresh that backs
+//                                   the Ctrl+L shortcut's newSession.
+//
 // Future milestones extend this file:
-//   - M6: side panel (ctx.ui.custom) + status bar + shortcuts
 //   - M7: per-agent tier resolution + provider registration
-//   - M8: auto loop wiring + worker message renderer
+//   - M8: auto loop wiring + worker message renderer + autoActive
+//         probe install onto the PanelController.
 
 import type { ExtensionAPI } from "./pi/sdk.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerModelsCommand } from "./commands/models.js";
+import { registerReplRefreshCommand } from "./commands/repl-refresh.js";
 import { registerSkillCommands } from "./commands/skills.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerKnowledgeGuard } from "./hooks/knowledge-guard.js";
@@ -43,12 +57,20 @@ import { refreshSnapshot } from "./state/snapshot.js";
 import { registerBelmontAskUserTool } from "./tools/belmont-ask-user.js";
 import { registerBelmontEpisodeEventTool } from "./tools/belmont-episode-event.js";
 import { registerBelmontTransitionTool } from "./tools/belmont-transition.js";
+import { PanelController } from "./tui/panel.js";
+import {
+  isThinkingCollapsed,
+  registerAutoOpenWatcher,
+  registerShortcuts,
+} from "./tui/shortcuts.js";
+import { recomputeStatusSlots, registerStatusBar } from "./tui/status-bar.js";
 
 export const belmontExtension = (pi: ExtensionAPI): void => {
   registerStatusCommand(pi);
   registerInitCommand(pi);
   registerModelsCommand(pi);
   registerSkillCommands(pi);
+  registerReplRefreshCommand(pi);
 
   registerBelmontTransitionTool(pi);
   registerBelmontEpisodeEventTool(pi);
@@ -57,8 +79,42 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
   registerKnowledgeGuard(pi);
   registerScopeGuard(pi);
 
+  // ── M6 TUI ────────────────────────────────────────────────────────
+  const panel = new PanelController({
+    sendUserMessage: (content, options) => pi.sendUserMessage(content, options),
+  });
+
+  const statusBarDeps = {
+    pi,
+    isThinkingCollapsed,
+  };
+  registerStatusBar(statusBarDeps);
+
+  registerShortcuts({
+    pi,
+    panel,
+    onThinkingFlagChange: (ctx) => {
+      // Push the new flag value through the same idempotent recompute
+      // path used by every other refresh trigger.
+      recomputeStatusSlots(ctx, statusBarDeps);
+    },
+  });
+
+  registerAutoOpenWatcher(pi, panel);
+
+  // Re-parse PROGRESS.md after every turn so a `belmont_transition`
+  // mutation in the closing turn shows up on the panel without the
+  // user needing to manually refresh. The scope-guard's turn_end hook
+  // is already registered upstream; pi fans turn_end to every handler.
+  pi.on("turn_end", async (_event, ctx) => {
+    await panel.refresh(ctx.cwd);
+  });
+
   pi.on("session_start", async (_event, ctx) => {
     await refreshSnapshot(ctx.cwd);
+    // Pre-prime the panel's parse cache so the first Ctrl+B opens
+    // without an empty flash.
+    await panel.refresh(ctx.cwd);
   });
 
   pi.on("before_agent_start", async (event, ctx) => appendBelmontContext(event, ctx.cwd));

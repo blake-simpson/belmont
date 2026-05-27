@@ -62,6 +62,30 @@ module.exports = {
       },
     },
     {
+      name: "no-pi-tui-outside-harness",
+      severity: "error",
+      comment:
+        "B5 trust boundary: @earendil-works/pi-tui (pi's TUI primitives) may ONLY be imported from packages/harness/src/pi/*.ts — siblings reach Component/OverlayHandle/etc. through pi/sdk.ts re-exports.",
+      from: {
+        path: "^packages/(knowledge-schema|skills|cli)/",
+      },
+      to: {
+        path: "node_modules/@earendil-works/pi-tui",
+      },
+    },
+    {
+      name: "no-pi-tui-outside-harness-pi-subdir",
+      severity: "error",
+      comment:
+        "B5 trust boundary: even inside @belmont/harness, only files under src/pi/ may import @earendil-works/pi-tui directly.",
+      from: {
+        path: "^packages/harness/src/(?!pi/)",
+      },
+      to: {
+        path: "node_modules/@earendil-works/pi-tui",
+      },
+    },
+    {
       name: "not-to-unresolvable",
       severity: "error",
       comment:
@@ -80,6 +104,19 @@ module.exports = {
       to: {
         dependencyTypes: ["npm", "npm-no-pkg", "npm-unknown", "unknown"],
         path: "^@earendil-works/pi-coding-agent",
+      },
+    },
+    {
+      name: "not-to-pi-tui-by-package-name",
+      severity: "error",
+      comment:
+        "Belt-and-braces for the pi-tui boundary (mirrors `not-to-pi-by-package-name` above).",
+      from: {
+        path: "^packages/(knowledge-schema|skills|cli)/",
+      },
+      to: {
+        dependencyTypes: ["npm", "npm-no-pkg", "npm-unknown", "unknown"],
+        path: "^@earendil-works/pi-tui",
       },
     },
   ],

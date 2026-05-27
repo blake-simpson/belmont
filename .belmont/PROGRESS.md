@@ -59,11 +59,11 @@
 
 ### M6: TUI panel + status + hotkeys + ctx-weight indicator
 
-- [ ] P0-1 ctx.ui.custom side panel (milestone/task tree)
-- [ ] P0-2 3-slot status bar (task | model+thinking+rtk | session+ctx)
-- [ ] P0-3 Above-editor progress widget for auto
-- [ ] P0-4 Shortcuts: Ctrl+B (panel), Ctrl+O (thinking), Ctrl+L (REPL refresh); panel: j/k/Enter/a/v/Esc
-- [ ] P0-5 Panel auto-open on /belmont:auto
+- [x] P0-1 ctx.ui.custom side panel (milestone/task tree)
+- [x] P0-2 3-slot status bar (task | model+thinking+rtk | session+ctx)
+- [x] P0-3 Above-editor progress widget for auto
+- [x] P0-4 Shortcuts: Ctrl+B (panel), Ctrl+O (thinking), Ctrl+L (REPL refresh); panel: j/k/Enter/a/v/Esc
+- [x] P0-5 Panel auto-open on /belmont:auto
 
 ### M7: Multi-model tiers + per-milestone overlay + models doctor
 

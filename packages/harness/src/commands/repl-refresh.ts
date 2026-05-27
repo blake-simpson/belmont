@@ -1,0 +1,34 @@
+// /belmont:repl-refresh — the receiving end of the Ctrl+L shortcut.
+//
+// pi 0.75.5's `pi.registerShortcut` handler signature gives the
+// callback an `ExtensionContext` (not the wider `ExtensionCommandContext`),
+// so it cannot call `ctx.newSession()` directly. The Ctrl+L shortcut in
+// tui/shortcuts.ts queues `/belmont:repl-refresh` as a follow-up user
+// message; this command handler — which DOES receive the command
+// context — invokes `newSession()` to refresh the REPL.
+//
+// v2.3 §17 M6 "Done when":
+//   - `Ctrl+L` runs `runtime.session.newSession()` on Runtime A
+//     (manual REPL context refresh).
+//
+// Pi-mono lineage (D-001):
+//   - `examples/extensions/reload-runtime.ts` — the
+//     `pi.sendUserMessage("/foo", { deliverAs: "followUp" })` →
+//     command-with-ExtensionCommandContext → `ctx.reload()` pattern.
+//     We adapt that same indirection for `ctx.newSession()`.
+
+import type { ExtensionAPI } from "../pi/sdk.js";
+
+export function registerReplRefreshCommand(pi: ExtensionAPI): void {
+  pi.registerCommand("belmont:repl-refresh", {
+    description: "Refresh the Belmont REPL (start a new session, keep extensions)",
+    handler: async (_args, ctx) => {
+      const result = await ctx.newSession();
+      if (result.cancelled) {
+        ctx.ui.notify("REPL refresh cancelled.", "warning");
+        return;
+      }
+      ctx.ui.notify("REPL refreshed.", "info");
+    },
+  });
+}
