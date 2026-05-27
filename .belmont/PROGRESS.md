@@ -91,10 +91,10 @@
 
 ### M10: MCP bridge
 
-- [ ] P0-1 .belmont/mcp.json schema (Claude-compatible)
-- [ ] P0-2 Blast-radius gate: auto:true required for unattended auto mode
-- [ ] P0-3 Cache + audit (.belmont/mcp-tools-cache.json)
-- [ ] P0-4 Buy-or-port decision wired from M0 spike (pi-mcp-adapter)
+- [v] P0-1 .belmont/mcp.json schema (Claude-compatible)
+- [v] P0-2 Blast-radius gate: auto:true required for unattended auto mode
+- [v] P0-3 Cache + audit (.belmont/mcp-tools-cache.json)
+- [v] P0-4 Buy-or-port decision wired from M0 spike (pi-mcp-adapter)
 
 ### M11: Distribution + smoke + ship
 

@@ -33,6 +33,15 @@ import { dirname, join } from "node:path";
 const AUTO_JSON_REL_PATH = ".belmont/auto.json";
 const AUTO_STOP_REL_PATH = ".belmont/auto.stop";
 
+/** §12.4 — `auto.json#mcp` audit spine. Each /belmont:auto run patches
+ *  in the post-blast-radius-filter list of MCP servers (the auto-only
+ *  subset). Empty array when no mcp.json or no auto:true server. */
+export type AutoJsonMcpEntry = {
+  name: string;
+  type: "stdio" | "http";
+  auto: boolean;
+};
+
 export type AutoJsonState = {
   currentMilestone: string;
   currentTaskId?: string;
@@ -40,6 +49,8 @@ export type AutoJsonState = {
   stopRequested: boolean;
   workerSessionId?: string;
   startedAt: string;
+  /** §12.4 MCP audit spine. Populated by mcp/audit.ts when /belmont:auto runs. */
+  mcp?: AutoJsonMcpEntry[];
 };
 
 export function autoJsonPath(cwd: string): string {
@@ -71,6 +82,7 @@ export async function readAutoJson(cwd: string): Promise<AutoJsonState | undefin
       workerSessionId:
         typeof parsed.workerSessionId === "string" ? parsed.workerSessionId : undefined,
       startedAt: parsed.startedAt,
+      ...(Array.isArray(parsed.mcp) ? { mcp: parseMcpEntries(parsed.mcp) } : {}),
     };
   } catch {
     return undefined;
@@ -145,4 +157,16 @@ function isEnoent(err: unknown): boolean {
     "code" in err &&
     (err as { code: unknown }).code === "ENOENT"
   );
+}
+
+function parseMcpEntries(raw: unknown[]): AutoJsonMcpEntry[] {
+  const out: AutoJsonMcpEntry[] = [];
+  for (const item of raw) {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r.name !== "string") continue;
+    if (r.type !== "stdio" && r.type !== "http") continue;
+    out.push({ name: r.name, type: r.type, auto: r.auto === true });
+  }
+  return out;
 }

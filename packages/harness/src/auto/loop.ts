@@ -249,6 +249,14 @@ export async function runAuto(deps: RunAutoDeps): Promise<void> {
     handleWorkerEvent(pi, event);
   });
 
+  // M10 §12.3 blast-radius gate signal. The MCP registry (mcp/
+  // adapter.ts) reads BELMONT_AUTO_MODE=1 at every session_start to
+  // filter the configured server set down to only those with
+  // `auto: true`. The var is the SOLE coupling between this loop and
+  // the MCP layer — no direct imports, no shared singleton, just one
+  // env var. finally{} below unsets it.
+  process.env.BELMONT_AUTO_MODE = "1";
+
   const startedAt = new Date().toISOString();
   activeAuto = {
     scope,
@@ -409,6 +417,14 @@ export async function runAuto(deps: RunAutoDeps): Promise<void> {
     unsubscribeWorker();
     await worker.dispose();
     activeAuto = null;
+    // M10 §12.3 — clear the blast-radius signal regardless of how the
+    // loop terminated. A leaked BELMONT_AUTO_MODE=1 would silently
+    // block non-auto MCP servers in subsequent interactive REPL
+    // sessions, which is the exact failure mode this finally{} block
+    // exists to prevent. Match the unsetting to the var setting at
+    // the top of the function: both unconditional, both in lockstep
+    // with the try block.
+    delete process.env.BELMONT_AUTO_MODE;
     if (ctx.hasUI) clearAutoProgressWidget(ctx);
     await clearAutoJson(ctx.cwd);
     await consumeAutoStop(ctx.cwd);

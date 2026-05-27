@@ -12,7 +12,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist/"],
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"
@@ -23,6 +25,7 @@
     "@earendil-works/pi-ai": "0.75.5",
     "@earendil-works/pi-coding-agent": "0.75.5",
     "@earendil-works/pi-tui": "0.75.5",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "typebox": "^1.1.0"
   },
   "devDependencies": {

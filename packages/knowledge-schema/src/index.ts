@@ -84,3 +84,13 @@ export {
   MODELS_JSON_SCHEMA,
   validateModelsJson,
 } from "./models-json.js";
+
+// M10 — .belmont/mcp.json schema (v2.3 §12.2).
+export type {
+  McpConfig,
+  McpHttpServer,
+  McpServerConfig,
+  McpStdioServer,
+  ParseMcpJsonResult,
+} from "./mcp-json.js";
+export { parseMcpJson } from "./mcp-json.js";

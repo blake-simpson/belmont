@@ -86,8 +86,20 @@
 //     registerLeanCtxHook(pi);          // ← context, first
 //     registerThinkingCollapseHook(pi); // ← context, second
 //
+// M10 wiring (now):
+//   - mcp/adapter.ts            — registerMcpServers reads
+//                                 .belmont/mcp.json, applies the
+//                                 §12.3 blast-radius gate
+//                                 (BELMONT_AUTO_MODE-aware), warms
+//                                 the §12.4 tools cache, registers
+//                                 each MCP tool as
+//                                 `mcp__<server>__<tool>`.
+//   - commands/mcp.ts           — /belmont:mcp doctor + refresh.
+//   - auto/loop.ts              — sets BELMONT_AUTO_MODE=1 around
+//                                 runAuto so subsequent session_starts
+//                                 trigger the auto:true filter.
+//
 // Future milestones extend this file:
-//   - M10: MCP bridge (.belmont/mcp.json + blast-radius gate).
 //   - M11: distribution + smoke + ship.
 
 import type { ExtensionAPI } from "./pi/sdk.js";
@@ -100,6 +112,7 @@ import {
 } from "./cli/rtk-detect.js";
 import { registerAutoCommands } from "./commands/auto.js";
 import { registerInitCommand } from "./commands/init.js";
+import { registerMcpCommand } from "./commands/mcp.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerReplRefreshCommand } from "./commands/repl-refresh.js";
 import { registerSkillCommands } from "./commands/skills.js";
@@ -110,6 +123,7 @@ import { registerScopeGuard } from "./hooks/scope-guard.js";
 import { registerSessionBeforeCompactHook } from "./hooks/session-before-compact.js";
 import { appendBelmontContext } from "./hooks/system-prompt.js";
 import { registerThinkingCollapseHook } from "./hooks/thinking-collapse.js";
+import { registerMcpServers } from "./mcp/index.js";
 import { refreshSnapshot } from "./state/snapshot.js";
 import { registerConfiguredProviders } from "./tiering/providers.js";
 import { refreshModelsJsonSnapshot } from "./tiering/snapshot.js";
@@ -131,6 +145,7 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
   registerSkillCommands(pi);
   registerReplRefreshCommand(pi);
   registerAutoCommands(pi);
+  registerMcpCommand(pi);
 
   registerBelmontTransitionTool(pi);
   registerBelmontEpisodeEventTool(pi);
@@ -216,6 +231,26 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
     // models-doctor warning surface (commands/models.ts).
     if (consumeMissingRtkWarning()) {
       ctx.ui.notify(rtkWarningMessage(detectRtk()), "warning");
+    }
+
+    // M10 §12: read .belmont/mcp.json, apply the §12.3 blast-radius
+    // gate (process.env.BELMONT_AUTO_MODE is the signal — set by
+    // auto/loop.ts around runAuto), warm the §12.4 tools cache, and
+    // register each MCP tool as `mcp__<server>__<tool>`. Failure of a
+    // single server doesn't poison the bridge — graceful degrade per
+    // §17 M10 done-when. A user with no mcp.json sees nothing extra.
+    try {
+      const mcp = await registerMcpServers(pi, ctx.cwd);
+      const failed = Object.entries(mcp.results).filter(([, r]) => r.kind === "failed");
+      if (failed.length > 0) {
+        const summary = failed
+          .map(([n, r]) => `${n}: ${r.kind === "failed" ? r.reason : ""}`)
+          .join("; ");
+        ctx.ui.notify(`MCP: ${failed.length} server(s) failed — ${summary}`, "warning");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      ctx.ui.notify(`MCP registration error: ${msg}`, "warning");
     }
   });
 

@@ -36,3 +36,15 @@ date: 2026-05-27
 - [transition/M9/P0-4] todo → in_progress
 - [transition/M9/P0-4] in_progress → done
 - [transition/M9/P0-4] done → verified (evidence: packages/harness/src/cli/rtk-detect.ts)
+- [transition/M10/P0-1] todo → in_progress
+- [transition/M10/P0-1] in_progress → done
+- [transition/M10/P0-1] done → verified (evidence: packages/knowledge-schema/src/mcp-json.ts)
+- [transition/M10/P0-2] todo → in_progress
+- [transition/M10/P0-2] in_progress → done
+- [transition/M10/P0-2] done → verified (evidence: packages/harness/src/mcp/blast-radius.ts)
+- [transition/M10/P0-3] todo → in_progress
+- [transition/M10/P0-3] in_progress → done
+- [transition/M10/P0-3] done → verified (evidence: packages/harness/src/mcp/cache.ts)
+- [transition/M10/P0-4] todo → in_progress
+- [transition/M10/P0-4] in_progress → done
+- [transition/M10/P0-4] done → verified (evidence: .belmont/memory/episodic/2026-05-27-m10-mcp-bridge.md)
