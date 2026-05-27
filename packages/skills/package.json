@@ -1,6 +1,6 @@
 {
   "name": "@belmont/skills",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Belmont skills — canonical SKILL.md sources + composer + standalone installer (`npx @belmont/skills install`). Depends only on @belmont/knowledge-schema.",
   "license": "MIT",
   "type": "module",
@@ -20,8 +20,28 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blakesimpson/belmont.git",
+    "directory": "packages/skills"
+  },
+  "homepage": "https://github.com/blakesimpson/belmont#readme",
+  "bugs": {
+    "url": "https://github.com/blakesimpson/belmont/issues"
+  },
+  "keywords": [
+    "belmont",
+    "skills",
+    "agentskills",
+    "claude-code",
+    "codex",
+    "ai-coding"
+  ],
   "dependencies": {
-    "@belmont/knowledge-schema": "workspace:*"
+    "@belmont/knowledge-schema": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

@@ -26,3 +26,15 @@ export {
   extractPrdIndex,
   type ValidateReport,
 } from "./validate.js";
+
+// M11 install/update wiring — surfaces the skills materializer + RTK
+// preflight to @belmont/cli without forcing cli to depend on @belmont/skills
+// directly (preserves the cli → harness → skills dep direction).
+export {
+  defaultSkillsTarget,
+  materializeBelmontSkills,
+  pathExists,
+  runRtkPreflight,
+  type RtkPreflightOutcome,
+  type SkillsMaterializeReport,
+} from "./cli/install-helpers.js";

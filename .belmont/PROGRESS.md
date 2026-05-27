@@ -98,9 +98,9 @@
 
 ### M11: Distribution + smoke + ship
 
-- [ ] P0-1 npm publish: @belmont/{knowledge-schema, skills, harness, cli}
-- [ ] P0-2 pi packages gallery metadata mirror
-- [ ] P0-3 install.sh (curl-pipe-sh on top of npm)
-- [ ] P0-4 belmont update self-update path
-- [ ] P0-5 §18 author smoke on disposable branch of a real Blake project
-- [ ] P0-6 Tag v1.0.0
+- [v] P0-1 npm publish: @belmont/{knowledge-schema, skills, harness, cli}
+- [v] P0-2 pi packages gallery metadata mirror
+- [v] P0-3 install.sh (curl-pipe-sh on top of npm)
+- [v] P0-4 belmont update self-update path
+- [v] P0-5 §18 author smoke on disposable branch of a real Blake project
+- [v] P0-6 Tag v1.0.0

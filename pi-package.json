@@ -1,0 +1,56 @@
+{
+  "$schema": "https://earendil.works/pi/schema/package/v1.json",
+  "name": "belmont",
+  "version": "1.0.0",
+  "displayName": "Belmont",
+  "description": "Pi-native coding harness with living memory, sequential auto mode, multi-model tiering, RTK token reduction, and MCP. Distribute via `npm install -g @belmont/cli` or `curl -sSL belmont.dev/install | bash`.",
+  "tagline": "One developer, one keyboard, one milestone at a time.",
+  "homepage": "https://github.com/blakesimpson/belmont",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blakesimpson/belmont.git"
+  },
+  "license": "MIT",
+  "author": "Blake Simpson <blake@librabit.co.uk>",
+  "keywords": [
+    "harness",
+    "auto-mode",
+    "mcp",
+    "memory",
+    "skills",
+    "knowledge-model",
+    "multi-model",
+    "rtk"
+  ],
+  "categories": ["harness", "memory", "auto-mode"],
+  "engines": {
+    "pi": "0.75.5",
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "belmont": "@belmont/cli"
+  },
+  "install": {
+    "primary": "npm install -g @belmont/cli",
+    "curl": "curl -sSL https://belmont.dev/install | bash",
+    "skillsOnly": "npx @belmont/skills install"
+  },
+  "skills": [
+    "working-backwards",
+    "plan",
+    "next",
+    "implement",
+    "verify",
+    "status",
+    "prototype",
+    "debug"
+  ],
+  "features": {
+    "knowledgeModel": true,
+    "autoMode": true,
+    "multiModel": true,
+    "mcp": true,
+    "rtk": true,
+    "crossHarness": true
+  }
+}

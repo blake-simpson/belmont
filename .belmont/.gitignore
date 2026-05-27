@@ -4,3 +4,4 @@ auto.stop
 .cache/
 mcp-tools-cache.json
 memory/steering/
+scratch/

@@ -1,6 +1,6 @@
 {
   "name": "@belmont/knowledge-schema",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Belmont knowledge-schema — pure parsers, validators, transitions. Zero pi dependencies.",
   "license": "MIT",
   "type": "module",
@@ -19,6 +19,26 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blakesimpson/belmont.git",
+    "directory": "packages/knowledge-schema"
+  },
+  "homepage": "https://github.com/blakesimpson/belmont#readme",
+  "bugs": {
+    "url": "https://github.com/blakesimpson/belmont/issues"
+  },
+  "keywords": [
+    "belmont",
+    "knowledge-schema",
+    "parser",
+    "validator",
+    "progress",
+    "ai-coding"
+  ],
   "dependencies": {
     "yaml": "^2.9.0",
     "zod": "^4.0.0"
