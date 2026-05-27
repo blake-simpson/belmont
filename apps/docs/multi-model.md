@@ -144,7 +144,7 @@ Three optimization features toggleable per project:
 - **`thinkingCollapse`** — when on, AssistantMessage thinking blocks
   in the context window are blanked from the in-context prompt
   (preserving `thinkingSignature` for multi-turn continuity). Toggleable
-  in-session with `Ctrl+O`. Saves significant tokens on long sessions.
+  in-session with `Alt+T`. Saves significant tokens on long sessions.
 - **`leanCtx`** — placeholder for the v1.1 `pi-lean-ctx` integration
   (deferred per M9 episodic; the package's 3.6.21 pivot to a CLI-first
   shell-routing surface conflicts with M9's RTK wiring).

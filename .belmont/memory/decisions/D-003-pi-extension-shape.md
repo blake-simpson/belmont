@@ -3,7 +3,7 @@ schema: belmont.adr.v1
 id: D-003-pi-extension-shape
 topic: harness
 status: accepted
-updated_at: 2026-05-26
+updated_at: 2026-05-27
 supersedes: null
 ---
 
@@ -36,11 +36,13 @@ needs a recorded decision rather than a silent re-interpretation.
    M3 leaves it unregistered.
 3. **Extension factory shape.** Belmont exports a single default
    factory `(pi: ExtensionAPI) => void` from
-   `packages/harness/src/extension.ts`. It is handed to pi via
-   `pi.main(argv, { extensionFactories: [belmontExtension] })` from
-   `packages/harness/src/pi/launch.ts`. No `--extension=<path>` CLI
-   flag is used; the in-process factory keeps `belmont` distributable
-   as a single npm package without filesystem materialisation.
+   `packages/harness/src/extension.ts`. A sibling
+   `packages/harness/src/belmont.ts` re-exports the factory so the
+   compiled output produces `dist/belmont.js` — pi loads this file via
+   `--extension <abs-path>` (resolved through `import.meta.url` at
+   launch time). See "Loading shape revision (2026-05-27, M11 §18)"
+   below for why M11 swapped off the `extensionFactories` in-process
+   path.
 4. **Type re-exports through `pi/sdk.ts`.** Every pi type the rest of
    the harness needs (`ExtensionAPI`, `ExtensionContext`,
    `ExtensionCommandContext`, `BeforeAgentStartEvent`,
@@ -75,15 +77,57 @@ needs a recorded decision rather than a silent re-interpretation.
   decide a factory composition order outside the harness — an
   unnecessary degree of freedom for a single-product harness.
 
+## Loading shape revision (2026-05-27, M11 §18)
+
+The original M3 decision was to use `pi.main(argv, { extensionFactories:
+[belmontExtension] })` — the in-process factory path. The §18
+ship-gate dogfood surfaced a cosmetic issue: pi-coding-agent 0.75.5's
+`resource-loader.js` hard-codes the extensionPath for factories as
+`<inline:${index + 1}>` (see `dist/core/resource-loader.js:607`). That
+string flows into:
+
+1. The `[Extensions]` startup banner (Blake's report shows `<inline:1>`).
+2. Every shortcut-conflict diagnostic (`Extension shortcut '...' from
+   <inline:1>...`).
+3. Provider-registration error messages.
+4. Pi's interactive-mode `formatExtensionDisplayPath` rendering.
+
+The 5th parameter of `loadExtensionFromFactory(factory, cwd, eventBus,
+runtime, extensionPath = "<inline>")` accepts a custom name, but the
+public `pi.main()` surface does not expose it.
+
+**Decision update**: switch to `pi --extension <abs-path>` loading.
+The launcher resolves an absolute path to a sibling re-export file
+(`packages/harness/src/belmont.ts` → `dist/belmont.js`) via
+`import.meta.url` and prepends `--extension <path>` to pi's argv.
+Pi loads the file via jiti, reads `default` as the factory, and sets
+`extension.path` to the resolved file path — so the banner shows
+`belmont.js` (the basename — see `agent-session.js:1666`'s
+`basename(extensionPath)` rendering) instead of `<inline:1>`.
+
+This change does NOT violate the "single-tarball-friendly" constraint
+the original M3 decision called out: `belmont.js` ships INSIDE the
+`@belmont/harness` tarball, alongside `dist/extension.js` it
+re-exports. There is no separate FS materialisation step; resolving
+via `import.meta.url` works identically in dev (running from
+`packages/harness/dist/...`) and in the installed case (running from
+`node_modules/@belmont/harness/dist/...`).
+
+The factory's PUBLIC surface is unchanged: `belmontExtension` in
+`extension.ts` is still the function pi calls; `belmont.ts` is a thin
+re-export whose only job is to give pi a friendly file path to display.
+
 ## Don't re-do
 
 - **Registering a `context` handler to inject BELMONT.md**. The hook
   fires per LLM call; doing so would re-inject the text on every
   message instead of once per agent start, blowing the cost budget and
   duplicating content already loaded by `before_agent_start`.
-- **Materialising the harness as a `.ts` extension file on disk** and
-  shelling out `pi --extension=<path>`. The in-process factory works
-  identically and removes a packaging concern.
+- **Reverting to `pi.main({ extensionFactories })`** — pi 0.75.5
+  hard-codes the inline path; the cosmetic `<inline:N>` is unavoidable
+  in that mode. The §18 dogfood proved this is loud enough to warrant
+  the file-extension shape. Don't undo it without an upstream pi PR
+  exposing a custom name on the public `extensionFactories` surface.
 - **Reaching directly into `@earendil-works/pi-coding-agent` for
   types** from any harness file outside `src/pi/`. The static
   pi-boundary regex catches it; route through `src/pi/sdk.ts`'s
@@ -104,3 +148,7 @@ needs a recorded decision rather than a silent re-interpretation.
 ## Revisions
 
 - 2026-05-26 — Accepted during M3 (harness shell + boot doctor).
+- 2026-05-27 — Amended during M11 §18 fix pass: switched the loading
+  shape from `extensionFactories` (in-process; pi displays
+  `<inline:1>`) to `--extension <abs-path>` pointing at a
+  `belmont.js` re-export sibling (pi displays the file basename).

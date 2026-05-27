@@ -1,7 +1,7 @@
 // TUI side panel — the M6 deliverable.
 //
 // v2.3 §6.1 mockup + §6.4 focus rules:
-//   - Ctrl+B opens the milestone tree as a right-anchored overlay.
+//   - Alt+B opens the milestone tree as a right-anchored overlay.
 //   - j/k navigate; Enter on task → /belmont:implement <id>;
 //     Enter or a on milestone → /belmont:auto <M>;
 //     v on milestone → /belmont:verify <M>; Esc closes.
@@ -20,12 +20,12 @@
 //   pre-open the panel (§7).
 //
 //   The panel has THREE states ("hidden" / "passive" / "active"); the
-//   live OverlayHandle is the runtime carrier. Ctrl+B toggles
+//   live OverlayHandle is the runtime carrier. Alt+B toggles
 //   visibility (M6 keeps it simple: hidden ↔ active). The input-watcher
 //   on `/belmont:auto` opens passive (visible, unfocused) so REPL still
 //   takes keystrokes — typing goes to the editor, not the panel.
 //
-//   M8 will widen the Esc/Ctrl+B transitions so Esc-while-focused
+//   M8 will widen the Esc/Alt+B transitions so Esc-while-focused
 //   returns to passive when the auto loop is live, instead of closing.
 //   The auto-active predicate is hooked into the controller through
 //   `setAutoActiveProbe()` — M6 always returns false.
@@ -236,7 +236,7 @@ export class PanelController {
     }
   }
 
-  /** Ctrl+B handler: hidden→active, active→hidden, passive→active. */
+  /** Alt+B handler: hidden→active, active→hidden, passive→active. */
   async toggle(ctx: ExtensionContext): Promise<void> {
     if (this.state === "hidden") {
       await this.openInternal(ctx, /* focused */ true);
@@ -309,7 +309,7 @@ export class PanelController {
     await this.reparse(ctx.cwd);
     // `ctx.ui.custom` returns a Promise that resolves when done() is called.
     // We don't await it here — we wire `done` to close the panel and
-    // continue concurrently so the caller (a Ctrl+B handler, the input
+    // continue concurrently so the caller (a Alt+B handler, the input
     // watcher) returns immediately.
     void ctx.ui
       .custom<undefined>(

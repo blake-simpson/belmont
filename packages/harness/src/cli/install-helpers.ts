@@ -21,31 +21,59 @@ import {
   type RtkDetectResult,
 } from "./rtk-detect.js";
 
-/** Cross-harness skill discovery target per D-9. Resolved per-call so
- *  test harnesses can re-point HOME mid-process. Materialized into
- *  `~/.agents/skills/belmont/` so Codex CLI / Cursor / Claude Code
- *  all pick the same canonical SKILL.md bodies up. Copies, not
- *  symlinks — Windows-portability + content-hashed idempotence. */
+/** Cross-harness skill discovery target. Resolved per-call so test
+ *  harnesses can re-point HOME mid-process. Materialized into
+ *  `~/.agents/skills/` (flat) with `belmont-` prefixed dir names so
+ *  Codex CLI / Cursor / Claude Code / vanilla pi pick the same
+ *  canonical SKILL.md bodies up WITHOUT colliding on names like
+ *  `prototype` / `plan` / `debug` that vanilla third-party skills
+ *  also publish. The `belmont-` prefix lives at install time
+ *  (compose's `namespacePrefix`), not in the canonical sources. Copies,
+ *  not symlinks — Windows-portability + content-hashed idempotence.
+ *
+ *  D-9 evolution (M11 §18 fix): the original D-9 design installed to
+ *  `~/.agents/skills/belmont/<slug>/`. Pi's auto-discovery sweeps that
+ *  sub-tree and registers each frontmatter `name: <slug>` — which
+ *  collides with vanilla `~/.agents/skills/<slug>/` of the same name
+ *  (Blake hit this for `prototype`). The flat-with-prefix layout
+ *  resolves the collision while keeping the cross-harness intent. */
 export function defaultSkillsTarget(): string {
-  return join(homedir(), ".agents", "skills", "belmont");
+  return join(homedir(), ".agents", "skills");
 }
+
+/** Cross-harness namespace prefix per D-4 (the M11 ADR amending D-9).
+ *  Set on every cross-harness materialization; canonical harness use
+ *  (in-process compose for skill bodies) does NOT set the prefix. */
+export const CROSS_HARNESS_PREFIX = "belmont-";
 
 export type SkillsMaterializeReport = ComposeResult & {
   target: string;
   source: string;
+  namespacePrefix: string;
 };
 
 /** Materialize the 8 canonical SKILL.md sources into `target`
- *  (default: ~/.agents/skills/belmont/). Idempotent via the
- *  content-hash check inside `compose()` — running this twice on a
- *  clean tree produces zero file writes. */
+ *  (default: ~/.agents/skills/) with the `belmont-` namespace prefix
+ *  so the resulting directory layout is
+ *  `~/.agents/skills/belmont-{working-backwards,plan,...}/SKILL.md`.
+ *  Idempotent via the content-hash check inside `compose()` — running
+ *  this twice on a clean tree produces zero file writes. */
 export async function materializeBelmontSkills(
   target?: string,
 ): Promise<SkillsMaterializeReport> {
   const resolvedTarget = target ?? defaultSkillsTarget();
   const source = bundledSourceDir();
-  const result = await compose({ source, target: resolvedTarget });
-  return { ...result, target: resolvedTarget, source };
+  const result = await compose({
+    source,
+    target: resolvedTarget,
+    namespacePrefix: CROSS_HARNESS_PREFIX,
+  });
+  return {
+    ...result,
+    target: resolvedTarget,
+    source,
+    namespacePrefix: CROSS_HARNESS_PREFIX,
+  };
 }
 
 export type RtkPreflightOutcome = {

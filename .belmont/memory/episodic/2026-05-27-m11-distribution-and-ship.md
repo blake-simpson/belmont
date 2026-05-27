@@ -318,3 +318,226 @@ After Blake explicitly green-lights:
    Blake required (dry-run only otherwise).
 7. Open the v1.0.1 debug session against Blake's outstanding
    "concerns from quick local dogfood" notes.
+
+---
+
+## §18 fix pass — 2026-05-27 (post-M11 commit 94c3930)
+
+After committing M11 at `94c3930`, Blake ran `belmont` cold and the
+startup banner surfaced three issues. Per Session 11 prompt rule
+("§18 failures are M11 blockers, not v1.1 deferrals"), all three
+fixes ship as M11 amendments BEFORE the v1.0.0 tag. Commit follows
+this episodic update.
+
+### Issue 1 — pi 0.75.5 reserved Ctrl+B / Ctrl+O / Ctrl+L
+
+Pi 0.75.5's `dist/core/keybindings.js` baked in:
+- `ctrl+l` → `app.model.select` (Open model selector)
+- `ctrl+o` → `app.tools.expand` (Toggle tool output)
+- `ctrl+t` → `app.thinking.toggle` (their own thinking toggle)
+- `ctrl+b` → `tui.editor.cursorLeft` (editor binding)
+
+`pi.registerShortcut` returns "Skipping" for our `ctrl+o` + `ctrl+l`
+(pi wins those outright); `ctrl+b` reports as a conflict where ours
+overrides pi's editor binding (loud warning). The M6 hotkey contract
+broke between M6's landing and v1.0.0.
+
+**Fix:** Remapped to `alt+_` per Blake's pick:
+- `alt+b` → toggle Belmont side panel
+- `alt+t` → toggle thinking-collapse flag (M9 hook's signal)
+- `alt+r` → REPL refresh (→ `/belmont:repl-refresh`)
+
+Files touched:
+- `packages/harness/src/tui/shortcuts.ts` — key strings + comment header.
+- `packages/harness/test/shortcuts.test.ts` — 4 tests' assertions.
+- `packages/harness/test/panel.test.ts` — 2 `it()` titles.
+- `packages/harness/src/tui/panel.ts`, `status-bar.ts`,
+  `tiering/snapshot.ts`, `extension.ts`, `mcp/blast-radius.ts`,
+  `state/rtk-stats.ts`, `hooks/thinking-collapse.ts`,
+  `commands/repl-refresh.ts` — comment references.
+- `apps/docs/getting-started.md` (hotkey table + historical note),
+  `apps/docs/multi-model.md` (one Ctrl+O reference),
+  `apps/docs/auto-mode.md` (one Ctrl+L reference),
+  `apps/docs/troubleshooting.md` (3 Ctrl+B references),
+  `.belmont/BELMONT.md` (Glossary "Side panel" entry).
+
+The M6 / M7 / M9 episodic files are LEFT UNCHANGED — they are
+historical record of what happened at those milestone times.
+Same for the M5 episodic line that mentions the original M6
+bindings.
+
+### Issue 2 — skill `prototype` collision under pi auto-discovery
+
+Pi auto-discovers `~/.agents/skills/` recursively, registering each
+SKILL.md by its frontmatter `name:` value. The D-9 design installed
+Belmont's skills to `~/.agents/skills/belmont/<slug>/` with bare
+slug names — so a vanilla `~/.agents/skills/prototype/` (Blake had
+a third-party `prototype` skill installed) collided on the name
+`prototype`. Pi reported `"prototype" collision` and picked one,
+emitting a warning either way.
+
+**Fix:** New D-004 ADR
+(`.belmont/memory/decisions/D-004-cross-harness-skill-namespace.md`)
+supersedes the planning-doc-only D-9. Cross-harness install path
+moved from `~/.agents/skills/belmont/<slug>/` to the flat
+`~/.agents/skills/` with `belmont-` prefix on the materialized dir
+AND on the frontmatter `name:` field. Layout post-install:
+
+```
+~/.agents/skills/belmont-working-backwards/SKILL.md  # name: belmont-working-backwards
+~/.agents/skills/belmont-plan/SKILL.md               # name: belmont-plan
+~/.agents/skills/belmont-next/SKILL.md               # name: belmont-next
+~/.agents/skills/belmont-implement/SKILL.md          # name: belmont-implement
+~/.agents/skills/belmont-verify/SKILL.md             # name: belmont-verify
+~/.agents/skills/belmont-status/SKILL.md             # name: belmont-status
+~/.agents/skills/belmont-prototype/SKILL.md          # name: belmont-prototype
+~/.agents/skills/belmont-debug/SKILL.md              # name: belmont-debug
+```
+
+No collision possible by construction. Verified mechanically: ran
+`belmont install` against the user's real `~/.agents/skills/`, then
+checked the harness-host (Claude Code) skill list — both
+`belmont-prototype` AND the vanilla `prototype` appear as DISTINCT
+skills. Confirmed by the system reminder during the fix-pass that
+Claude Code now lists `belmont-implement`, `belmont-plan`,
+`belmont-prototype`, etc. as separate entries from `prototype`.
+
+Implementation:
+
+- `packages/skills/src/compose.ts` — new `namespacePrefix` option on
+  `ComposeOptions`. When set, target dir becomes
+  `<target>/<prefix><slug>/` and a `rewriteFrontmatterName()` helper
+  surgically swaps the YAML `name:` line.
+- `packages/harness/src/cli/install-helpers.ts` — `defaultSkillsTarget()`
+  returns `~/.agents/skills/` (flat); `materializeBelmontSkills()`
+  always passes `namespacePrefix: "belmont-"`.
+- `packages/skills/src/installer.ts` — `npx @belmont/skills install`
+  defaults to the same prefix. `--no-prefix` opts out; `--prefix
+  <value>` overrides.
+- 5 new compose tests in `packages/skills/test/compose.test.ts`
+  covering the prefix rewrite, references travel, idempotence,
+  custom prefix, empty-prefix back-compat.
+- `packages/cli/test/install.test.ts` — assertions updated to read
+  from `.agents/skills/belmont-plan/SKILL.md` with `name: belmont-plan`.
+- `apps/docs/standalone-skills.md` + `cross-harness.md` — new layout
+  documented.
+
+### Issue 3 — `<inline:1>` extension banner
+
+Pi 0.75.5's `resource-loader.js:607` hardcodes
+`<inline:${index + 1}>` as the extensionPath for factories passed
+via `pi.main({ extensionFactories })`. That path string surfaces in
+the `[Extensions]` banner AND every shortcut-conflict /
+provider-error diagnostic. Belmont's M3 D-003 ADR locked in the
+`extensionFactories` path; pi's hard-coded inline naming was
+acceptable then but loud once it surfaces in §18.
+
+**Fix:** Switched the loading shape from in-process factory to
+`pi --extension <abs-path>`. Added `packages/harness/src/belmont.ts`
+that re-exports the default factory:
+
+```typescript
+export { belmontExtension as default } from "./extension.js";
+```
+
+Compiled output: `packages/harness/dist/belmont.js`. The launcher
+resolves the absolute path via `import.meta.url` and prepends
+`--extension <path>` to pi's argv:
+
+```typescript
+export function resolveBelmontExtensionPath(): string {
+  return fileURLToPath(new URL("../belmont.js", import.meta.url));
+}
+
+export async function launchPi(argv: readonly string[]): Promise<void> {
+  const extensionPath = resolveBelmontExtensionPath();
+  await piMain(["--extension", extensionPath, ...argv]);
+}
+```
+
+Pi sets `extension.path` to the resolved file path; `basename(path)`
+flows through pi's source-label rendering as `belmont.js` instead
+of `<inline:1>`. The factory body in `extension.ts` is unchanged;
+`belmont.ts` is a thin re-export whose only job is to give pi a
+friendly filename.
+
+D-003 amended in place with a "Loading shape revision (2026-05-27,
+M11 §18)" section explaining the swap. The "single-tarball-friendly"
+constraint still holds — `belmont.js` ships inside the @belmont/harness
+tarball; `import.meta.url` resolves to it identically in dev (running
+from `packages/harness/dist/...`) and installed (running from
+`node_modules/@belmont/harness/dist/...`).
+
+Module count: 80 → 81 (added belmont.ts; +1). Boundary still clean.
+
+### Verification of the fix pass
+
+| Check | Result |
+|---|---|
+| `pnpm build` | ✅ clean tsc + dep-check (81 modules / 170 deps) |
+| `pnpm test` | ✅ 552 tests / 49 files (was 547; +5 namespace tests; the existing shortcuts.test.ts + install.test.ts assertions updated) |
+| `pnpm dep-check` | ✅ no boundary violations |
+| Cold `belmont init` in a fresh tmp dir | ✅ all 5 files scaffolded; boot doctor reports 2/3 tiers reachable (unchanged from initial M11 smoke) |
+| Cold `belmont install` against real `~/.agents/skills/` | ✅ 8 `belmont-<slug>/` dirs materialised; vanilla `prototype/` (third-party) is left alone |
+| Claude Code skill discovery | ✅ system reminder during fix pass lists `belmont-implement`, `belmont-plan`, `belmont-prototype`, etc. as distinct from vanilla `prototype` |
+| `pi --extension <path>` startup | ✅ no `[Extensions]` warnings emitted on a real-world cold run (any shortcut conflicts gone; skill collision gone; the inline-naming is moot now) |
+| `pnpm -r pack` | ✅ 4 tarballs at `/tmp/belmont-pack-fix/belmont-{cli,harness,skills,knowledge-schema}-1.0.0.tgz`; harness grew ~4 KB for belmont.ts + install-helpers.ts wiring |
+
+### M11 markers — unchanged
+
+The §18 fixes are corrections to the work covered by M11 P0-1..P0-6;
+they don't add new tasks. PROGRESS.md still shows all six P0 tasks
+at `[v]` — the second M11 commit titled `M11: §18 fixes …` carries
+the amendments. The `belmont_transition` audit log stays at the 18
+transitions logged in the initial M11 commit; no additional
+transitions land for the fix pass.
+
+## Files added (fix pass)
+
+- `packages/harness/src/belmont.ts` — the re-export entry for
+  `pi --extension` loading.
+- `.belmont/memory/decisions/D-004-cross-harness-skill-namespace.md`
+  — the new ADR amending the planning-doc D-9.
+
+## Files edited (fix pass)
+
+- `packages/harness/src/tui/shortcuts.ts` — alt+_ key mappings +
+  header comment rewrite.
+- `packages/harness/src/pi/launch.ts` — `--extension <path>` flow.
+- `packages/harness/src/extension.ts` — comment header references
+  to Ctrl+B/O/L updated.
+- `packages/harness/src/tui/panel.ts`, `tui/status-bar.ts`,
+  `tiering/snapshot.ts`, `mcp/blast-radius.ts`, `state/rtk-stats.ts`,
+  `hooks/thinking-collapse.ts`, `commands/repl-refresh.ts` —
+  comment references to the old hotkey names updated.
+- `packages/harness/test/shortcuts.test.ts` — assertions on the new
+  keys.
+- `packages/harness/test/panel.test.ts` — `it()` titles updated to
+  the new key names.
+- `packages/skills/src/compose.ts` — `namespacePrefix` option +
+  `rewriteFrontmatterName()` helper.
+- `packages/skills/src/installer.ts` — `--no-prefix` / `--prefix` flags,
+  default prefix `belmont-`, default target moved to flat
+  `~/.agents/skills/`.
+- `packages/skills/test/compose.test.ts` — 5 new prefix tests.
+- `packages/harness/src/cli/install-helpers.ts` — `defaultSkillsTarget()`
+  flattens; `materializeBelmontSkills()` always passes `belmont-` prefix.
+- `packages/cli/test/install.test.ts` — assertion paths updated.
+- `apps/docs/getting-started.md`, `multi-model.md`, `auto-mode.md`,
+  `troubleshooting.md`, `standalone-skills.md`, `cross-harness.md` —
+  user-facing surface updated (hotkeys + install path).
+- `.belmont/BELMONT.md` — Glossary "Side panel" entry references
+  Alt+B.
+- `.belmont/memory/decisions/D-003-pi-extension-shape.md` — loading
+  shape revision section + revisions log.
+- `CHANGELOG.md` — v1.0.0 entry gains a "§18 fix pass" sub-bullet
+  listing the three corrections.
+
+## Stale user-state cleanup note
+
+Users who ran an earlier `belmont install` against
+`~/.agents/skills/belmont/<slug>/` (the D-9 layout) should
+`rm -rf ~/.agents/skills/belmont/` before re-running `belmont
+install`. The new install path is `~/.agents/skills/belmont-<slug>/`
+(flat root with prefix); the old subdirectory layout is not
+auto-cleaned. Documented in CHANGELOG.

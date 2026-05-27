@@ -12,7 +12,7 @@
 // extension's session_start handler (which is what calls registerMcp-
 // Servers) reads the var from process.env at registration time — so
 // when /belmont:auto fires the auto loop, then triggers a session
-// refresh (Ctrl+L / new session etc.), the second session_start sees
+// refresh (Alt+R / new session etc.), the second session_start sees
 // the var set and filters accordingly.
 //
 // Symmetric in reverse: when auto ends, /belmont:mcp refresh OR a

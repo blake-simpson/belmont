@@ -108,14 +108,20 @@ codebase from one keyboard" workflow.
 
 | Key | Effect |
 |---|---|
-| `Ctrl+B` | Toggle side panel (passive ↔ active ↔ closed). |
-| `Ctrl+O` | Toggle thinking-block visibility (token-collapse). |
-| `Ctrl+L` | REPL refresh — new session, extensions preserved. |
+| `Alt+B` | Toggle side panel (passive ↔ active ↔ closed). |
+| `Alt+T` | Toggle thinking-block visibility (token-collapse). |
+| `Alt+R` | REPL refresh — new session, extensions preserved. |
 | `j` / `k` | Move selection in panel (active mode). |
 | `Enter` | Open selected milestone/task. |
 | `a` | Queue `/belmont:auto <milestone>` from the panel. |
 | `v` | Queue `/belmont:verify <task>` from the panel. |
 | `Esc` | Yield focus from panel back to REPL. |
+
+> The original M6 bindings were `Ctrl+B / Ctrl+O / Ctrl+L`; pi 0.75.5
+> took those Ctrl letters for its own commands (`tui.editor.cursorLeft`,
+> `app.tools.expand`, `app.model.select`). Belmont remapped to `Alt+_`
+> at M11's §18 fix pass; the mnemonic intent is preserved
+> (`Alt+B`elmont panel, `Alt+T`hinking, `Alt+R`efresh).
 
 ## Where things live
 

@@ -1,7 +1,7 @@
 // Thinking-collapse context hook — picks up the M6 deferral.
 //
 // v2.3 §17 M6 P0-4 done-when:
-//   "Ctrl+O toggles thinking-block visibility globally (a session-state
+//   "Alt+T toggles thinking-block visibility globally (a session-state
 //    flag the message renderer respects)."
 //
 // M6 wired the FLAG (`isThinkingCollapsed()` in tui/shortcuts.ts +
@@ -113,7 +113,7 @@ function isAssistantMessage(msg: AgentMessage): msg is AssistantMessage {
 }
 
 export interface ThinkingCollapseDeps {
-  /** Live getter for the Ctrl+O session-state flag. Production wiring
+  /** Live getter for the Alt+T session-state flag. Production wiring
    *  threads `isThinkingCollapsed` from tui/shortcuts.ts; tests inject
    *  their own to exercise both branches without poking the module's
    *  internal `thinkingCollapsed` boolean. */

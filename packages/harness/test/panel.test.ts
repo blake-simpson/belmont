@@ -327,7 +327,7 @@ describe("PanelController", () => {
     }
   });
 
-  it("Ctrl+B (toggle) from passive → active (focus)", async () => {
+  it("Alt+B (toggle) from passive → active (focus)", async () => {
     const cwd = await makeRepoWithProgress(SAMPLE);
     try {
       const ctrl = new PanelController({ sendUserMessage: vi.fn() });
@@ -344,7 +344,7 @@ describe("PanelController", () => {
     }
   });
 
-  it("Ctrl+B (toggle) from active → hidden (M6 behaviour; M8 widens)", async () => {
+  it("Alt+B (toggle) from active → hidden (M6 behaviour; M8 widens)", async () => {
     const cwd = await makeRepoWithProgress(SAMPLE);
     try {
       const ctrl = new PanelController({ sendUserMessage: vi.fn() });

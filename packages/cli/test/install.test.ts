@@ -53,13 +53,17 @@ describe("cmdInstall", () => {
     expect(text).toContain("Scaffolded .belmont/");
     expect(text).toMatch(/skills: \d+ written/);
     // Spot-check one canonical skill — `plan` is on the §10 skill list.
-    // The default skills target is `$HOME/.agents/skills/belmont/`
-    // (which we redirected to TMP_PROJECT above).
+    // Per D-004, the cross-harness install path is the FLAT
+    // `$HOME/.agents/skills/` (redirected to TMP_PROJECT above) with
+    // the `belmont-` prefix on each materialized dir AND the frontmatter
+    // `name:` field rewritten to match. So `plan` lives at
+    // `.agents/skills/belmont-plan/SKILL.md` with `name: belmont-plan`.
     const planSkill = await readFile(
-      join(TMP_PROJECT, ".agents", "skills", "belmont", "plan", "SKILL.md"),
+      join(TMP_PROJECT, ".agents", "skills", "belmont-plan", "SKILL.md"),
       "utf8",
     );
-    expect(planSkill).toContain("name: plan");
+    expect(planSkill).toContain("name: belmont-plan");
+    expect(planSkill).not.toContain("name: plan\n");
   });
 
   it("is idempotent: second run writes zero skill files and leaves .belmont/ alone", async () => {

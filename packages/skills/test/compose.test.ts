@@ -120,4 +120,62 @@ describe("compose()", () => {
     const b = await materializeSkill("verify", SRC);
     expect(hash(a)).toBe(hash(b));
   });
+
+  describe("namespacePrefix (D-004 cross-harness install path)", () => {
+    it("rewrites target dir to <prefix><slug> and frontmatter `name:` to match", async () => {
+      await withTempDir(async (target) => {
+        const result = await compose({ source: SRC, target, namespacePrefix: "belmont-" });
+        expect(result.errors).toHaveLength(0);
+        for (const e of result.entries) {
+          // The materialized path lives under the prefixed dir.
+          expect(e.path).toContain(`/belmont-${e.slug}/SKILL.md`);
+          const body = await readFile(e.path, "utf8");
+          expect(body).toMatch(new RegExp(`^name:\\s+belmont-${e.slug}\\s*$`, "m"));
+          // The bare slug must NOT remain as a name line.
+          expect(body).not.toMatch(new RegExp(`^name:\\s+${e.slug}\\s*$`, "m"));
+        }
+      });
+    });
+
+    it("references travel into the prefixed dir too", async () => {
+      await withTempDir(async (target) => {
+        const r = await compose({ source: SRC, target, namespacePrefix: "belmont-" });
+        const implementEntry = r.entries.find((e) => e.slug === "implement");
+        expect(implementEntry?.references).toContain("implement-checklist.md");
+        const refTarget = join(target, "belmont-implement", "references", "implement-checklist.md");
+        const stats = await stat(refTarget);
+        expect(stats.isFile()).toBe(true);
+      });
+    });
+
+    it("idempotent under prefix — second compose writes nothing", async () => {
+      await withTempDir(async (target) => {
+        await compose({ source: SRC, target, namespacePrefix: "belmont-" });
+        const r2 = await compose({ source: SRC, target, namespacePrefix: "belmont-" });
+        for (const e of r2.entries) {
+          expect(e.written, `${e.slug} should not be re-written under prefix`).toBe(false);
+        }
+      });
+    });
+
+    it("custom prefix (e.g. acme-) works the same shape", async () => {
+      await withTempDir(async (target) => {
+        const r = await compose({ source: SRC, target, namespacePrefix: "acme-" });
+        const plan = r.entries.find((e) => e.slug === "plan");
+        expect(plan?.path).toContain("/acme-plan/SKILL.md");
+        const body = await readFile(plan!.path, "utf8");
+        expect(body).toMatch(/^name:\s+acme-plan\s*$/m);
+      });
+    });
+
+    it("empty prefix (\"\") preserves the M4 (bare-slug) layout", async () => {
+      await withTempDir(async (target) => {
+        const r = await compose({ source: SRC, target, namespacePrefix: "" });
+        const plan = r.entries.find((e) => e.slug === "plan");
+        expect(plan?.path).toContain("/plan/SKILL.md");
+        const body = await readFile(plan!.path, "utf8");
+        expect(body).toMatch(/^name:\s+plan\s*$/m);
+      });
+    });
+  });
 });

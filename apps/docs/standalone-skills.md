@@ -72,12 +72,36 @@ Composer responsibilities:
 npx @belmont/skills install
 ```
 
-Default target: `~/.agents/skills/belmont/` (D-9 cross-harness
-discovery target). Override:
+Default target: `~/.agents/skills/` (flat root) with the `belmont-`
+prefix on each materialized dir AND the frontmatter `name:` field
+rewritten to match. The layout post-install is:
+
+```
+~/.agents/skills/belmont-working-backwards/SKILL.md   # name: belmont-working-backwards
+~/.agents/skills/belmont-plan/SKILL.md                # name: belmont-plan
+~/.agents/skills/belmont-next/SKILL.md                # name: belmont-next
+~/.agents/skills/belmont-implement/SKILL.md           # name: belmont-implement
+~/.agents/skills/belmont-verify/SKILL.md              # name: belmont-verify
+~/.agents/skills/belmont-status/SKILL.md              # name: belmont-status
+~/.agents/skills/belmont-prototype/SKILL.md           # name: belmont-prototype
+~/.agents/skills/belmont-debug/SKILL.md               # name: belmont-debug
+```
+
+Per D-004, this avoids pi's auto-discovery sweep colliding with
+vanilla third-party skills at `~/.agents/skills/<slug>/` of the same
+name (e.g. a non-Belmont `prototype/` next to ours).
+
+Override the target or prefix:
 
 ```bash
-npx @belmont/skills install --target ~/.claude/skills/belmont/
-npx @belmont/skills install --target /path/to/test/fixture
+# Custom target dir.
+npx @belmont/skills install --target ~/.claude/skills/
+
+# Custom prefix.
+npx @belmont/skills install --prefix acme-
+
+# Opt out of the prefix (legacy M4 layout — rarely what you want).
+npx @belmont/skills install --no-prefix
 ```
 
 The same composer runs from `belmont install` (the harness CLI

@@ -1,14 +1,14 @@
-// /belmont:repl-refresh — the receiving end of the Ctrl+L shortcut.
+// /belmont:repl-refresh — the receiving end of the Alt+R shortcut.
 //
 // pi 0.75.5's `pi.registerShortcut` handler signature gives the
 // callback an `ExtensionContext` (not the wider `ExtensionCommandContext`),
-// so it cannot call `ctx.newSession()` directly. The Ctrl+L shortcut in
+// so it cannot call `ctx.newSession()` directly. The Alt+R shortcut in
 // tui/shortcuts.ts queues `/belmont:repl-refresh` as a follow-up user
 // message; this command handler — which DOES receive the command
 // context — invokes `newSession()` to refresh the REPL.
 //
 // v2.3 §17 M6 "Done when":
-//   - `Ctrl+L` runs `runtime.session.newSession()` on Runtime A
+//   - `Alt+R` runs `runtime.session.newSession()` on Runtime A
 //     (manual REPL context refresh).
 //
 // Pi-mono lineage (D-001):
@@ -29,7 +29,7 @@ export function registerReplRefreshCommand(pi: ExtensionAPI): void {
       // up edits the user made mid-session. The next /belmont:models
       // (or auto-loop tier resolution at M8) will hit the file again.
       invalidateModelsJsonSnapshot();
-      // M9 §11.4: per-session RTK counter resets on Ctrl+L. The next
+      // M9 §11.4: per-session RTK counter resets on Alt+R. The next
       // status-bar recompute will see getRtkSummary() === undefined and
       // drop the `· rtk: …` suffix until new commands accumulate.
       resetRtkStats();

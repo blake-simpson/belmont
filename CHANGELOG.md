@@ -118,6 +118,46 @@ to v1.1** — the disqualifier is the peer `@earendil-works/pi-ai @
 architectural mismatch (peer pi-extension, not embeddable library; no
 seam for the §12.3 blast-radius gate; duplicate `/mcp` slash command UI).
 
+### M11 §18 fix pass (2026-05-27, post-94c3930)
+
+The initial M11 commit (`94c3930`) shipped manifests + docs + the
+mechanical §18. Blake's cold-start dogfood immediately surfaced three
+issues, all M11 blockers per the §18-failures-are-M11-blockers rule.
+All three landed before the v1.0.0 tag:
+
+- **Hotkey remap.** Pi 0.75.5 reserved `ctrl+l`, `ctrl+o`, `ctrl+t`,
+  and `ctrl+b` for its own commands (`app.model.select`,
+  `app.tools.expand`, `app.thinking.toggle`,
+  `tui.editor.cursorLeft`). M6's Ctrl+B/O/L bindings either
+  collide-and-lose (O, L) or collide-and-warn (B). Remapped to
+  `alt+b` (panel), `alt+t` (thinking-collapse), `alt+r` (REPL
+  refresh).
+- **Skill namespace.** The original D-9 install path
+  `~/.agents/skills/belmont/<slug>/` collided with vanilla
+  third-party skills of the same slug name when pi auto-discovered
+  the agentskills tree (Blake hit `prototype` collision). New
+  `D-004-cross-harness-skill-namespace.md` ADR supersedes the
+  planning-doc D-9: install path moved to flat `~/.agents/skills/`
+  with `belmont-` prefix on directory AND frontmatter `name:`. No
+  collision possible by construction.
+- **Extension naming.** Pi's `extensionFactories` in-process path
+  hard-codes the extension path to `<inline:${index + 1}>`. Switched
+  to `pi --extension <abs-path>` loading via a new
+  `packages/harness/src/belmont.ts` re-export sibling. Pi now
+  displays `belmont.js` as the extension's source label.
+  `D-003-pi-extension-shape.md` amended with the loading-shape
+  revision.
+
+> **Stale install state.** Users who already ran `belmont install`
+> against the D-9 layout should `rm -rf ~/.agents/skills/belmont/`
+> before re-running. The new install path is
+> `~/.agents/skills/belmont-<slug>/` (flat root with prefix); old
+> subdirectory layout is not auto-cleaned.
+
+Final fix-pass state: **552 tests / 49 files** (added 5 namespace
+tests; updated the existing shortcut + install assertions). **81
+modules / 170 deps** cruised, no boundary violations.
+
 ### M11 — Distribution + smoke + ship (2026-05-27)
 
 Per v2.3 §17 M11 done-when:

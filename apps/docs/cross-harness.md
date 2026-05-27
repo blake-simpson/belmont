@@ -53,15 +53,27 @@ npx @belmont/skills install --target <path>
 | Host | Default discovery path | Override syntax |
 |---|---|---|
 | **Belmont harness** | in-process bundle (no FS materialization needed for harness use) | n/a |
-| **Claude Code CLI** | `~/.claude/skills/belmont/<slug>/` | `npx @belmont/skills install --target ~/.claude/skills/belmont/` |
-| **Codex CLI (current)** | `~/.agents/skills/belmont/<slug>/` | default works |
-| **Codex CLI (older)** | `~/.codex/skills/belmont/<slug>/` | `npx @belmont/skills install --target ~/.codex/skills/belmont/` |
-| **Cursor** | `~/.agents/skills/belmont/<slug>/` | default works (Cursor reads agentskills.io discovery dirs) |
-| **Vanilla pi (no Belmont extension)** | `~/.agents/skills/belmont/<slug>/` | default works |
+| **Claude Code CLI** | `~/.claude/skills/belmont-<slug>/` | `npx @belmont/skills install --target ~/.claude/skills/` |
+| **Codex CLI (current)** | `~/.agents/skills/belmont-<slug>/` | default works |
+| **Codex CLI (older)** | `~/.codex/skills/belmont-<slug>/` | `npx @belmont/skills install --target ~/.codex/skills/` |
+| **Cursor** | `~/.agents/skills/belmont-<slug>/` | default works (Cursor reads agentskills.io discovery dirs) |
+| **Vanilla pi (no Belmont extension)** | `~/.agents/skills/belmont-<slug>/` | default works |
 
-The DEFAULT default — `~/.agents/skills/belmont/` — covers Codex
-current + Cursor + vanilla pi in one shot. Claude Code is the
-notable outlier; it reads `~/.claude/skills/`.
+The DEFAULT default — `~/.agents/skills/` with `belmont-` prefix —
+covers Codex current + Cursor + vanilla pi in one shot. Claude Code
+is the notable outlier; it reads `~/.claude/skills/`.
+
+### Why the `belmont-` prefix (D-004)
+
+The original D-9 design (`~/.agents/skills/belmont/<slug>/` with bare
+slug names) ran into a pi 0.75.5 auto-discovery collision: pi sweeps
+the agentskills root recursively and registers every SKILL.md by its
+frontmatter `name:` value. The bare names (`prototype`, `plan`,
+`debug`, …) collide with any third-party skill of the same name
+published directly at `~/.agents/skills/<slug>/`. Belmont remapped
+to flat `~/.agents/skills/` with the `belmont-` prefix on dir AND
+frontmatter — the canonical agentskills.io vendor-namespacing
+convention. See `.belmont/memory/decisions/D-004-cross-harness-skill-namespace.md`.
 
 ## What "no harness" means for skill capability
 

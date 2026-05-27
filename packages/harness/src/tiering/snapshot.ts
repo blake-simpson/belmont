@@ -9,7 +9,7 @@
 //
 // Invalidation:
 //   - session_start: extension.ts loads + primes the cache.
-//   - /belmont:repl-refresh (Ctrl+L): invalidates so the next read
+//   - /belmont:repl-refresh (Alt+R): invalidates so the next read
 //     picks up edits the user made mid-session.
 //   - On error during load, the previous good snapshot is preserved
 //     (so a transient JSON syntax error while the user is editing

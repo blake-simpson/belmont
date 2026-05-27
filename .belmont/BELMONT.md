@@ -89,7 +89,7 @@ choice — treat as read-only.
   `createAgentSessionRuntime`; spawned on `/belmont:auto`, disposed in
   `finally`.
 - **Side panel** — `ctx.ui.custom` widget showing milestone/task tree;
-  toggled by `Ctrl+B`.
+  toggled by `Alt+B` (pi 0.75.5 reserved Ctrl+B; remapped at M11 §18 fix).
 - **Tier** — high / medium / low named slots in `models.json#tiers`.
 - **Overlay** — per-milestone HTML comment in PROGRESS.md that
   overrides agent → tier mapping for one milestone.

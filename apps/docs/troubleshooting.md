@@ -130,13 +130,13 @@ this is the documented escape route.
 
 Three states (per M6):
 
-- **closed** — `Ctrl+B` reopens.
-- **passive** — `Ctrl+B` goes ACTIVE.
-- **active** — `Ctrl+B` returns to PASSIVE while auto is running, or
+- **closed** — `Alt+B` reopens.
+- **passive** — `Alt+B` goes ACTIVE.
+- **active** — `Alt+B` returns to PASSIVE while auto is running, or
   CLOSED while idle.
 
 Auto-open on `/belmont:auto`: if the panel is closed, `runAuto`'s
-preamble opens it. If `Ctrl+B` doesn't respond at all, you're
+preamble opens it. If `Alt+B` doesn't respond at all, you're
 likely in a `pi --print "..."` (i.e. `belmont --script` ) run —
 that mode has no TUI to open.
 

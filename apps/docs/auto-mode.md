@@ -133,8 +133,8 @@ test that fails first.
   runs, not inside one. The auto loop reads the PROGRESS.md snapshot
   at startup; mid-run edits are noticed at the next `runAuto`
   invocation.
-- **Auto-Ctrl+L the REPL.** Per the resolved tension (Appendix §20),
-  fresh-ctx for Runtime A is MANUAL only — Ctrl+L. Auto-reset destroys
+- **Auto-refresh the REPL.** Per the resolved tension (Appendix §20),
+  fresh-ctx for Runtime A is MANUAL only — `Alt+R`. Auto-reset destroys
   the user's most common follow-up ("now show me what just happened").
 - **Touch MCP servers without `auto:true`.** See [mcp.md](./mcp.md).
 

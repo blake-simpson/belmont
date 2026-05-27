@@ -21,6 +21,17 @@ export type ComposeOptions = {
   source: string;
   /** Absolute path to the target directory (one subdir per slug). */
   target: string;
+  /** Optional namespace prefix prepended to the materialized directory
+   *  name AND to the frontmatter `name:` field. Used by the cross-harness
+   *  install path to avoid colliding with vanilla skill names (e.g. a
+   *  third-party `~/.agents/skills/prototype/` next to ours).
+   *
+   *  When set to `"belmont-"`, slug `plan` materializes to
+   *  `<target>/belmont-plan/SKILL.md` with frontmatter `name: belmont-plan`.
+   *  When unset (default), behaviour is unchanged from M4. The
+   *  canonical sources keep their bare slug names in
+   *  `packages/skills/src/<slug>/`. */
+  namespacePrefix?: string;
 };
 
 export type ComposeEntry = {
@@ -89,6 +100,8 @@ async function writeIfChanged(path: string, content: string): Promise<boolean> {
 
 export async function composeSkill(slug: Slug, options: ComposeOptions): Promise<{ entry: ComposeEntry; errors: ComposeError[] }> {
   const errors: ComposeError[] = [];
+  const prefix = options.namespacePrefix ?? "";
+  const targetSlugName = `${prefix}${slug}`;
   const canonicalPath = join(options.source, slug, "SKILL.md");
   const canonical = await readFile(canonicalPath, "utf8");
   const { frontmatter, body, warnings } = parseFrontmatter(canonical);
@@ -99,17 +112,35 @@ export async function composeSkill(slug: Slug, options: ComposeOptions): Promise
   }
   const expanded = await expandIncludes(options.source, body, slug, errors);
   const fmYaml = canonical.slice(0, canonical.length - body.length);
-  const materialized = fmYaml + expanded;
-  const targetSkill = join(options.target, slug, "SKILL.md");
+  const rewrittenFm = prefix === "" ? fmYaml : rewriteFrontmatterName(fmYaml, slug, targetSlugName);
+  const materialized = rewrittenFm + expanded;
+  const targetSkill = join(options.target, targetSlugName, "SKILL.md");
   const written = await writeIfChanged(targetSkill, materialized);
   const refs = findReferences(materialized);
   for (const ref of refs) {
     const refSrc = join(options.source, "references", ref);
-    const refDst = join(options.target, slug, "references", ref);
+    const refDst = join(options.target, targetSlugName, "references", ref);
     const refBody = await readFile(refSrc, "utf8");
     await writeIfChanged(refDst, refBody);
   }
   return { entry: { slug, path: targetSkill, written, references: refs }, errors };
+}
+
+/** Surgically rewrite a `name: <slug>` line inside a YAML frontmatter
+ *  block so cross-harness installs can publish slugs as
+ *  `belmont-<slug>` without forking the canonical sources. The block
+ *  is bounded by `---` fences; we replace only the first matching
+ *  `name:` line inside that block.
+ *
+ *  Belt + braces: if the line isn't found (custom frontmatter shape),
+ *  the original string flows through unchanged — the NAME_MISMATCH
+ *  guard upstream will have already complained when the canonical
+ *  source's `name:` value didn't equal the slug. */
+function rewriteFrontmatterName(fmYaml: string, fromName: string, toName: string): string {
+  // ^name: <fromName>\s*$ within the frontmatter region (multi-line).
+  const escaped = fromName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^(\\s*name:\\s*)${escaped}(\\s*)$`, "m");
+  return fmYaml.replace(re, `$1${toName}$2`);
 }
 
 export async function compose(options: ComposeOptions): Promise<ComposeResult> {
