@@ -18,6 +18,7 @@
 //     We adapt that same indirection for `ctx.newSession()`.
 
 import type { ExtensionAPI } from "../pi/sdk.js";
+import { resetRtkStats } from "../state/rtk-stats.js";
 import { invalidateModelsJsonSnapshot } from "../tiering/snapshot.js";
 
 export function registerReplRefreshCommand(pi: ExtensionAPI): void {
@@ -28,6 +29,10 @@ export function registerReplRefreshCommand(pi: ExtensionAPI): void {
       // up edits the user made mid-session. The next /belmont:models
       // (or auto-loop tier resolution at M8) will hit the file again.
       invalidateModelsJsonSnapshot();
+      // M9 §11.4: per-session RTK counter resets on Ctrl+L. The next
+      // status-bar recompute will see getRtkSummary() === undefined and
+      // drop the `· rtk: …` suffix until new commands accumulate.
+      resetRtkStats();
       const result = await ctx.newSession();
       if (result.cancelled) {
         ctx.ui.notify("REPL refresh cancelled.", "warning");

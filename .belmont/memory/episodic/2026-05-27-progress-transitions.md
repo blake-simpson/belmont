@@ -24,3 +24,15 @@ date: 2026-05-27
 - [transition/M8/P0-4] todo → done
 - [transition/M8/P0-5] todo → done
 - [transition/M8/P0-6] todo → done
+- [transition/M9/P0-1] todo → in_progress
+- [transition/M9/P0-1] in_progress → done
+- [transition/M9/P0-1] done → verified (evidence: packages/harness/src/hooks/rtk-bash.ts)
+- [transition/M9/P0-2] todo → in_progress
+- [transition/M9/P0-2] in_progress → done
+- [transition/M9/P0-2] done → verified (evidence: packages/harness/src/hooks/thinking-collapse.ts) — lean-ctx deferred to v1.1; M9 P0-2 satisfied by thinking-collapse on context per §11.5 composition contract — see episodic
+- [transition/M9/P0-3] todo → in_progress
+- [transition/M9/P0-3] in_progress → done
+- [transition/M9/P0-3] done → verified (evidence: packages/harness/src/tui/status-bar.ts)
+- [transition/M9/P0-4] todo → in_progress
+- [transition/M9/P0-4] in_progress → done
+- [transition/M9/P0-4] done → verified (evidence: packages/harness/src/cli/rtk-detect.ts)

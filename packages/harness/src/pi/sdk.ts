@@ -85,9 +85,48 @@
 // `pi/worker.ts`) is the only file that constructs an
 // `AgentSessionRuntime` — every other harness file consumes the worker
 // via the opaque `BelmontWorkerHandle`.
+//
+// M9 (now) extends the surface for RTK + token reduction + thinking-
+// collapse + compaction observation:
+//
+//   - `createLocalBashOperations` (function VALUE re-export) — wrapped
+//     by hooks/rtk-bash.ts to rewrite user-typed shell commands through
+//     `rtk` while preserving pi's local-shell execution semantics.
+//   - Type re-exports: `BashOperations`, `BashSpawnContext`,
+//     `BashSpawnHook`, `BashToolOptions` — consumed by the user_bash
+//     hook's BashOperations wrapper.
+//   - Type re-exports: `UserBashEvent`, `UserBashEventResult` — the
+//     pi.on("user_bash", …) event surface RTK rides on. `user_bash` only
+//     fires on USER-typed `!`/`!!` shell commands in the REPL; LLM-
+//     spawned bash tool calls go through `tool_call` / `tool_execution_*`
+//     and are NOT intercepted by RTK (correct per §11.1 scoping).
+//   - Type re-exports: `ContextEvent`, `ContextEventResult` — the
+//     messages-array rewrite slot reserved by D-003 for messages
+//     pruning. M9 is the first registration (thinking-collapse). v1.1
+//     adds lean-ctx composition.
+//   - Type re-exports: `SessionBeforeCompactEvent`,
+//     `SessionBeforeCompactResult`, `CompactionPreparation`,
+//     `SessionEntry` — for the M9 observer that writes an episodic
+//     entry before pi compacts the transcript (returns undefined so
+//     pi's default compaction proceeds).
+//   - Type re-exports: `AgentMessage`, `AssistantMessage`,
+//     `ThinkingContent`, `TextContent`, `ImageContent`, `ToolCall` —
+//     consumed by the thinking-collapse context hook to walk the
+//     messages array and rewrite assistant thinking blocks.
+//
+// pi-mono upstream example references (per D-001-omp-evaluation):
+//   - examples/extensions/bash-spawn-hook.ts (createBashTool + spawnHook
+//     pattern — informed the RTK wrapper's BashOperations approach)
+//   - examples/extensions/hidden-thinking-label.ts (the existing pi
+//     label API; M9's thinking-collapse rewrites the messages array
+//     instead because §6.4 specifies content collapse, not label change)
+//   - examples/extensions/custom-compaction.ts (session_before_compact
+//     event shape + CompactionPreparation; M9 observes, does NOT
+//     override pi's compaction)
 
 import {
   VERSION as PI_VERSION,
+  createLocalBashOperations as piCreateLocalBashOperations,
   isToolCallEventType as piIsToolCallEventType,
 } from "@earendil-works/pi-coding-agent";
 
@@ -95,6 +134,12 @@ export const piPackage = "@earendil-works/pi-coding-agent";
 export const piVersion = PI_VERSION;
 
 export const isToolCallEventType = piIsToolCallEventType;
+
+// M9 value re-export — the local-shell BashOperations factory.
+// hooks/rtk-bash.ts wraps the result with an `onData` interceptor that
+// parses `rtk gain: …` trailers, and rewrites the first arg from the
+// user's raw command to `rtk <command>` before delegating.
+export const createLocalBashOperations = piCreateLocalBashOperations;
 
 // pi-coding-agent class re-export. `Theme` is a class so the same
 // identifier carries both the value (constructor) and the type
@@ -155,8 +200,13 @@ export type {
   AuthCredential,
   AuthStatus,
   AuthStorage,
+  BashOperations,
+  BashSpawnContext,
+  BashSpawnHook,
+  BashToolOptions,
   BeforeAgentStartEvent,
   BeforeAgentStartEventResult,
+  ContextEvent,
   ContextUsage,
   CreateAgentSessionFromServicesOptions,
   CreateAgentSessionResult,
@@ -181,6 +231,8 @@ export type {
   OAuthCredential,
   ProviderConfig,
   ProviderModelConfig,
+  SessionBeforeCompactEvent,
+  SessionEntry,
   SessionShutdownEvent,
   SessionStartEvent,
   TerminalInputHandler,
@@ -189,6 +241,8 @@ export type {
   ToolDefinition,
   TurnEndEvent,
   TurnStartEvent,
+  UserBashEvent,
+  UserBashEventResult,
   WidgetPlacement,
   WorkingIndicatorOptions,
   WriteToolCallEvent,
@@ -200,10 +254,29 @@ export type {
 // pi-coding-agent OAuth surface refers to it. Imported here only so the
 // rest of the harness reaches these via `./pi/sdk.js` (pi-boundary lint
 // is widened to include pi-ai at M7).
+//
+// M9 (now) adds the message-content type surface needed by the
+// thinking-collapse context hook: `AssistantMessage`, `UserMessage`,
+// `ToolResultMessage`, `Message`, `ThinkingContent`, `TextContent`,
+// `ImageContent`, `ToolCall`. These are the pi-ai message vocabulary
+// that flows through `ContextEvent.messages` (typed as `AgentMessage[]`
+// upstream, which is a superset of `Message` admitting user-defined
+// custom messages via the `CustomAgentMessages` declaration-merge slot).
+// `AgentMessage` itself is declared locally below — pi-coding-agent does
+// not re-export it from its top-level surface (it lives in pi-agent-core,
+// which Belmont does not depend on directly).
 export type {
   Api,
+  AssistantMessage,
+  ImageContent,
+  Message,
   Model,
   OAuthCredentials,
+  TextContent,
+  ThinkingContent,
+  ToolCall,
+  ToolResultMessage,
+  UserMessage,
 } from "@earendil-works/pi-ai";
 
 // pi-tui type-only re-exports (the interfaces, not the classes —
@@ -219,3 +292,42 @@ export type {
   OverlayOptions,
   SizeValue,
 } from "@earendil-works/pi-tui";
+
+import type {
+  ContextEvent as PiContextEvent,
+  SessionBeforeCompactEvent as PiSessionBeforeCompactEvent,
+} from "@earendil-works/pi-coding-agent";
+
+// ─── M9 declared-locally type surface ─────────────────────────────────
+//
+// `AgentMessage` upstream is `Message | CustomAgentMessages[keyof
+// CustomAgentMessages]` (per pi-agent-core/dist/types.d.ts L271). pi-
+// coding-agent declaration-merges `bashExecution: BashExecutionMessage`
+// into that interface (see pi-coding-agent/core/messages.d.ts L52-55),
+// so a context handler that walks `event.messages` MUST handle the
+// BashExecutionMessage variant too — not just `Message`. pi-coding-
+// agent does not re-export `AgentMessage` at its top level and we don't
+// depend on pi-agent-core directly, so we derive the alias from the
+// public `ContextEvent.messages` array element. That auto-widens
+// whenever pi (or any future Belmont-declared) custom message type is
+// added, without churning call sites.
+export type AgentMessage = PiContextEvent["messages"][number];
+
+// `ContextEventResult` upstream lives in core/extensions/types.ts but is
+// NOT re-exported at the top level (the public on() overload binds it
+// implicitly so handler authors never need to import it directly).
+// Belmont's hooks/thinking-collapse.ts returns this shape explicitly to
+// make the messages-rewrite intent obvious; declared locally to keep
+// the wrapper self-contained.
+export interface ContextEventResult {
+  messages?: AgentMessage[];
+}
+
+// `CompactionPreparation` is reachable via index access on the event,
+// hoisted here for readability in hooks/session-before-compact.ts.
+export type CompactionPreparation = PiSessionBeforeCompactEvent["preparation"];
+
+// Re-export the context-event message-array type for handlers that need
+// to declare a typed local variable.
+export type ContextEventMessages = PiContextEvent["messages"];
+// ──────────────────────────────────────────────────────────────────────

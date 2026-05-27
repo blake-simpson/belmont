@@ -31,6 +31,7 @@
 import { basename } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "../pi/sdk.js";
+import { formatBytes, getRtkSummary, type RtkSummary } from "../state/rtk-stats.js";
 import {
   type CtxThresholds,
   DEFAULT_CTX_THRESHOLDS,
@@ -62,17 +63,26 @@ export function taskSlot(projectName: string): string {
   return projectName;
 }
 
+export function formatRtkSummarySuffix(summary: RtkSummary | undefined): string {
+  // §11.3 graceful degradation: when no RTK trailers have been parsed
+  // this session (counter is undefined OR savedBytes is zero), the
+  // suffix is empty — the user sees the bare `<model> · <thinking>`
+  // slot instead of a misleading `rtk: 0% (0B saved)`.
+  if (!summary || summary.savedBytes === 0) return "";
+  return ` · rtk: -${summary.percent}% (${formatBytes(summary.savedBytes)} saved)`;
+}
+
 export function modelSlot(
   model: { provider: string; id: string } | undefined,
   thinkingLevel: string,
   thinkingCollapsed: boolean,
+  rtkSummary?: RtkSummary,
 ): string {
   const head = model ? `${model.provider}/${model.id}` : "no model";
   const thinking = thinkingLevel ? thinkingLevel : "off";
   const collapseSuffix = thinkingCollapsed ? " · thinking-collapse" : "";
-  // RTK (-X% / Y saved) lands in M9; placeholder omitted to keep the
-  // status bar quiet rather than misleading.
-  return `${head} · ${thinking}${collapseSuffix}`;
+  const rtkSuffix = formatRtkSummarySuffix(rtkSummary);
+  return `${head} · ${thinking}${collapseSuffix}${rtkSuffix}`;
 }
 
 export function ctxSlot(
@@ -107,9 +117,17 @@ export function recomputeStatusSlots(
   const thinkingLevel = deps.pi.getThinkingLevel();
   const model = ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : undefined;
   const projectName = basename(ctx.cwd);
+  // M9: pull the live RTK summary every recompute. getRtkSummary()
+  // returns undefined when no trailers have been parsed this session —
+  // formatRtkSummarySuffix() degrades to empty in that case so the bar
+  // stays quiet (§11.3 contract).
+  const rtkSummary = getRtkSummary();
 
   ctx.ui.setStatus(SLOT_KEYS.task, taskSlot(projectName));
-  ctx.ui.setStatus(SLOT_KEYS.model, modelSlot(model, thinkingLevel, deps.isThinkingCollapsed()));
+  ctx.ui.setStatus(
+    SLOT_KEYS.model,
+    modelSlot(model, thinkingLevel, deps.isThinkingCollapsed(), rtkSummary),
+  );
   ctx.ui.setStatus(SLOT_KEYS.ctx, ctxSlot(tokens, thresholds));
   ctx.ui.setStatus(SLOT_KEYS.cost, costSlot());
 }

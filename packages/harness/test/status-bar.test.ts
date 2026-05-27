@@ -1,15 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { recordRtkSavings, resetRtkStats } from "../src/state/rtk-stats.js";
 import {
   CTX_POLL_INTERVAL_MS,
   SLOT_KEYS,
   costSlot,
   ctxSlot,
+  formatRtkSummarySuffix,
   modelSlot,
   recomputeStatusSlots,
   registerStatusBar,
   taskSlot,
 } from "../src/tui/status-bar.js";
+
+afterEach(() => {
+  resetRtkStats();
+});
 
 describe("slot string helpers", () => {
   describe("taskSlot", () => {
@@ -34,6 +40,86 @@ describe("slot string helpers", () => {
       expect(
         modelSlot({ provider: "anthropic", id: "claude-opus-4-7" }, "high", true),
       ).toBe("anthropic/claude-opus-4-7 · high · thinking-collapse");
+    });
+
+    it("appends '· rtk: -X% (Y saved)' when a non-zero rtk summary is supplied (M9)", () => {
+      const summary = {
+        savedBytes: 2048,
+        originalBytes: 8192,
+        percent: 25,
+        commandCount: 4,
+      };
+      expect(
+        modelSlot(
+          { provider: "anthropic", id: "claude-opus-4-7" },
+          "high",
+          false,
+          summary,
+        ),
+      ).toBe("anthropic/claude-opus-4-7 · high · rtk: -25% (2.0K saved)");
+    });
+
+    it("omits the rtk suffix entirely when summary is undefined", () => {
+      expect(
+        modelSlot(
+          { provider: "anthropic", id: "claude-opus-4-7" },
+          "high",
+          false,
+          undefined,
+        ),
+      ).toBe("anthropic/claude-opus-4-7 · high");
+    });
+
+    it("omits the rtk suffix when savedBytes === 0 (§11.3 graceful degrade)", () => {
+      expect(
+        modelSlot(
+          { provider: "anthropic", id: "claude-opus-4-7" },
+          "high",
+          false,
+          { savedBytes: 0, originalBytes: 100, percent: 0, commandCount: 1 },
+        ),
+      ).toBe("anthropic/claude-opus-4-7 · high");
+    });
+
+    it("composes thinking-collapse AND rtk suffixes in order", () => {
+      expect(
+        modelSlot(
+          { provider: "anthropic", id: "claude-opus-4-7" },
+          "medium",
+          true,
+          { savedBytes: 1024, originalBytes: 2048, percent: 50, commandCount: 2 },
+        ),
+      ).toBe(
+        "anthropic/claude-opus-4-7 · medium · thinking-collapse · rtk: -50% (1.0K saved)",
+      );
+    });
+  });
+
+  describe("formatRtkSummarySuffix", () => {
+    it("returns empty string for undefined summary", () => {
+      expect(formatRtkSummarySuffix(undefined)).toBe("");
+    });
+
+    it("returns empty string for zero savedBytes", () => {
+      expect(
+        formatRtkSummarySuffix({
+          savedBytes: 0,
+          originalBytes: 1000,
+          percent: 0,
+          commandCount: 1,
+        }),
+      ).toBe("");
+    });
+
+    it("formats non-zero savings as ' · rtk: -X% (Y saved)'", () => {
+      expect(
+        formatRtkSummarySuffix({
+          savedBytes: 512,
+          originalBytes: 1024,
+          percent: 50,
+          commandCount: 1,
+        }),
+      ).toBe(" · rtk: -50% (512B saved)");
     });
   });
 
@@ -155,6 +241,22 @@ describe("recomputeStatusSlots", () => {
     for (let i = 0; i < 4; i++) {
       expect(calls[i]).toEqual(calls[i + 4]);
     }
+  });
+
+  it("M9: picks up live rtk-stats counter into the model slot", () => {
+    recordRtkSavings({ savedBytes: 1024, originalBytes: 2048 });
+    const ctx = makeCtx({
+      model: { provider: "anthropic", id: "claude-opus-4-7" },
+      tokens: 1000,
+    });
+    recomputeStatusSlots(
+      ctx as unknown as Parameters<typeof recomputeStatusSlots>[0],
+      { pi: makePi("high"), isThinkingCollapsed: () => false },
+    );
+    const byKey = Object.fromEntries(ctx.ui.setStatus.mock.calls.map(([k, v]) => [k, v]));
+    expect(byKey[SLOT_KEYS.model]).toBe(
+      "anthropic/claude-opus-4-7 · high · rtk: -50% (1.0K saved)",
+    );
   });
 });
 

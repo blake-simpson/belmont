@@ -84,10 +84,10 @@
 
 ### M9: RTK + token reduction
 
-- [ ] P0-1 RTK user_bash hook (default-on, BELMONT_RTK_DISABLE=1 opt-out)
-- [ ] P0-2 Optional pi-lean-ctx at context hook
-- [ ] P0-3 Status bar RTK savings counter
-- [ ] P0-4 Missing-RTK fallback (warn or hard-fail per strictness tier)
+- [v] P0-1 RTK user_bash hook (default-on, BELMONT_RTK_DISABLE=1 opt-out)
+- [v] P0-2 Optional pi-lean-ctx at context hook
+- [v] P0-3 Status bar RTK savings counter
+- [v] P0-4 Missing-RTK fallback (warn or hard-fail per strictness tier)
 
 ### M10: MCP bridge
 
