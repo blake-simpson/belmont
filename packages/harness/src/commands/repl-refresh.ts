@@ -18,11 +18,16 @@
 //     We adapt that same indirection for `ctx.newSession()`.
 
 import type { ExtensionAPI } from "../pi/sdk.js";
+import { invalidateModelsJsonSnapshot } from "../tiering/snapshot.js";
 
 export function registerReplRefreshCommand(pi: ExtensionAPI): void {
   pi.registerCommand("belmont:repl-refresh", {
     description: "Refresh the Belmont REPL (start a new session, keep extensions)",
     handler: async (_args, ctx) => {
+      // M7: invalidate the models.json snapshot so the next read picks
+      // up edits the user made mid-session. The next /belmont:models
+      // (or auto-loop tier resolution at M8) will hit the file again.
+      invalidateModelsJsonSnapshot();
       const result = await ctx.newSession();
       if (result.cancelled) {
         ctx.ui.notify("REPL refresh cancelled.", "warning");

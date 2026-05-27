@@ -119,6 +119,43 @@ module.exports = {
         path: "^@earendil-works/pi-tui",
       },
     },
+    {
+      name: "no-pi-ai-outside-harness",
+      severity: "error",
+      comment:
+        "B5 trust boundary: @earendil-works/pi-ai (pi's underlying AI SDK, source of Api/Model/OAuthCredentials types) may ONLY be imported from packages/harness/src/pi/*.ts. Mirror of the pi-coding-agent + pi-tui rules; added at M7 alongside ProviderConfig/ProviderModelConfig re-exports.",
+      from: {
+        path: "^packages/(knowledge-schema|skills|cli)/",
+      },
+      to: {
+        path: "node_modules/@earendil-works/pi-ai",
+      },
+    },
+    {
+      name: "no-pi-ai-outside-harness-pi-subdir",
+      severity: "error",
+      comment:
+        "B5 trust boundary: even inside @belmont/harness, only files under src/pi/ may import @earendil-works/pi-ai directly.",
+      from: {
+        path: "^packages/harness/src/(?!pi/)",
+      },
+      to: {
+        path: "node_modules/@earendil-works/pi-ai",
+      },
+    },
+    {
+      name: "not-to-pi-ai-by-package-name",
+      severity: "error",
+      comment:
+        "Belt-and-braces for the pi-ai boundary (mirror of not-to-pi-by-package-name / not-to-pi-tui-by-package-name).",
+      from: {
+        path: "^packages/(knowledge-schema|skills|cli)/",
+      },
+      to: {
+        dependencyTypes: ["npm", "npm-no-pkg", "npm-unknown", "unknown"],
+        path: "^@earendil-works/pi-ai",
+      },
+    },
   ],
   options: {
     tsConfig: { fileName: "tsconfig.json" },

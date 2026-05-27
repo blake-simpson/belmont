@@ -67,11 +67,11 @@
 
 ### M7: Multi-model tiers + per-milestone overlay + models doctor
 
-- [ ] P0-1 models.json schema + 4-layer resolver (CLI > milestone overlay > project > tier base)
-- [ ] P0-2 pi.registerProvider for codex/kimi/openai-compat
-- [ ] P0-3 /belmont:models doctor implementation
-- [ ] P0-4 Per-milestone HTML-comment overlay parsing
-- [ ] P0-5 Boot-doctor reachability check (≥1 reachable tier)
+- [x] P0-1 models.json schema + 4-layer resolver (CLI > milestone overlay > project > tier base)
+- [x] P0-2 pi.registerProvider for codex/kimi/openai-compat
+- [x] P0-3 /belmont:models doctor implementation
+- [x] P0-4 Per-milestone HTML-comment overlay parsing
+- [x] P0-5 Boot-doctor reachability check (≥1 reachable tier)
 
 ### M8: Auto mode (two-runtime, sequential) + lifecycle ownership + 10-iter leak test
 

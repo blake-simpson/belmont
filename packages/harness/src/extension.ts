@@ -39,8 +39,15 @@
 //   - commands/repl-refresh.ts    — /belmont:repl-refresh that backs
 //                                   the Ctrl+L shortcut's newSession.
 //
+// M7 wiring (now):
+//   - session_start: refresh the models.json snapshot AND, when the
+//     file validates, call registerConfiguredProviders so codex/kimi/
+//     openai-compatible/ollama become available before the user runs
+//     /model or /belmont:auto.
+//   - /belmont:repl-refresh (M6 Ctrl+L) invalidates the snapshot via
+//     tiering/snapshot.ts so the next read picks up live edits.
+//
 // Future milestones extend this file:
-//   - M7: per-agent tier resolution + provider registration
 //   - M8: auto loop wiring + worker message renderer + autoActive
 //         probe install onto the PanelController.
 
@@ -54,6 +61,8 @@ import { registerKnowledgeGuard } from "./hooks/knowledge-guard.js";
 import { registerScopeGuard } from "./hooks/scope-guard.js";
 import { appendBelmontContext } from "./hooks/system-prompt.js";
 import { refreshSnapshot } from "./state/snapshot.js";
+import { registerConfiguredProviders } from "./tiering/providers.js";
+import { refreshModelsJsonSnapshot } from "./tiering/snapshot.js";
 import { registerBelmontAskUserTool } from "./tools/belmont-ask-user.js";
 import { registerBelmontEpisodeEventTool } from "./tools/belmont-episode-event.js";
 import { registerBelmontTransitionTool } from "./tools/belmont-transition.js";
@@ -115,6 +124,16 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
     // Pre-prime the panel's parse cache so the first Ctrl+B opens
     // without an empty flash.
     await panel.refresh(ctx.cwd);
+
+    // M7: load + cache the models.json snapshot and register any
+    // custom providers it names. Silently no-op when models.json is
+    // missing or invalid — the doctor surfaces those at /belmont:init
+    // and /belmont:models doctor time; this hook just keeps the cache
+    // warm for the M8 auto loop's hot-path resolveTier calls.
+    const snapshot = await refreshModelsJsonSnapshot(ctx.cwd);
+    if (snapshot.ok) {
+      registerConfiguredProviders(pi, snapshot.data, ctx.modelRegistry);
+    }
   });
 
   pi.on("before_agent_start", async (event, ctx) => appendBelmontContext(event, ctx.cwd));

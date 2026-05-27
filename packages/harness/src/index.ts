@@ -14,10 +14,11 @@ export {
   runModelsDoctor,
   formatDoctorReport,
   type DoctorResult,
-  type TierResult,
-  type ModelsJson,
-  type ModelsTier,
+  type TierReachability,
 } from "./tiering/doctor.js";
+// ModelsJson + ModelsTier come from @belmont/knowledge-schema at M7
+// (moved out of the harness when the Zod schema landed in §17 M7 P0).
+export type { ModelsJson, ModelsTier } from "@belmont/knowledge-schema";
 export { renderStatus } from "./commands/status.js";
 export {
   runBelmontValidate,

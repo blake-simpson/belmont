@@ -29,7 +29,12 @@ export function registerInitCommand(pi: ExtensionAPI): void {
 
       await refreshSnapshot(ctx.cwd);
 
-      const doctor = await runModelsDoctor(ctx.cwd);
+      // M7: pass the live ModelRegistry from ctx so the doctor's
+      // subscription-tier reachability check runs for real (per
+      // §9.6 — credentials-on-disk check, no network probe).
+      const doctor = await runModelsDoctor(ctx.cwd, {
+        modelRegistry: ctx.modelRegistry,
+      });
       ctx.ui.notify(
         formatDoctorReport(doctor),
         doctor.hardFail ? "error" : "info",

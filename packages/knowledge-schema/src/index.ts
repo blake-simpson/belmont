@@ -71,3 +71,16 @@ export {
 
 export type { SuggestContext } from "./suggest.js";
 export { generateSuggestion } from "./suggest.js";
+
+export type {
+  CtxThresholds,
+  ModelsAgentMap,
+  ModelsJson,
+  ModelsTier,
+  ValidateModelsJsonResult,
+} from "./models-json.js";
+export {
+  agentTier,
+  MODELS_JSON_SCHEMA,
+  validateModelsJson,
+} from "./models-json.js";

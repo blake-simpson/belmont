@@ -42,6 +42,22 @@
 // width-utility helpers (`visibleWidth`, `truncateToWidth`) used by
 // the panel renderer.
 //
+// M7 (now) extends the surface for multi-model tiering. New
+// pi-coding-agent re-exports cover provider registration
+// (`ProviderConfig`, `ProviderModelConfig`), the live `ModelRegistry`
+// class (consumed as a TYPE from `ctx.modelRegistry`), and the auth
+// surface needed for §9.5 reachability checks (`AuthStorage`,
+// `AuthStatus`, `AuthCredential`). The `Api`, `Model`, and
+// `OAuthCredentials` re-exports come from `@earendil-works/pi-ai`
+// (pi-coding-agent's underlying SDK) — that package is a new direct
+// dep added at M7. Pi-ai is widened into the pi-boundary lint via
+// `.dependency-cruiser.cjs` (mirror of the M6 pi-tui widening).
+//
+// pi-mono upstream example references (per D-001-omp-evaluation):
+//   - examples/extensions/custom-provider-anthropic/index.ts
+//   - examples/extensions/custom-provider-gitlab-duo/index.ts
+//   - examples/extensions/model-status.ts
+//
 // M8 will add `createAgentSessionRuntime` lifecycle wrappers for the
 // auto worker.
 
@@ -89,6 +105,10 @@ export {
 export type {
   AgentToolResult,
   AgentToolUpdateCallback,
+  ApiKeyCredential,
+  AuthCredential,
+  AuthStatus,
+  AuthStorage,
   BeforeAgentStartEvent,
   BeforeAgentStartEventResult,
   ContextUsage,
@@ -106,6 +126,10 @@ export type {
   InputSource,
   MessageRenderer,
   MessageRenderOptions,
+  ModelRegistry,
+  OAuthCredential,
+  ProviderConfig,
+  ProviderModelConfig,
   SessionShutdownEvent,
   SessionStartEvent,
   TerminalInputHandler,
@@ -118,6 +142,18 @@ export type {
   WorkingIndicatorOptions,
   WriteToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
+
+// pi-ai type re-exports — the underlying AI SDK pi-coding-agent builds on.
+// Belmont's M7 provider-registration + reachability code consumes Model<Api>
+// and Api directly, and OAuthCredentials shows up wherever the
+// pi-coding-agent OAuth surface refers to it. Imported here only so the
+// rest of the harness reaches these via `./pi/sdk.js` (pi-boundary lint
+// is widened to include pi-ai at M7).
+export type {
+  Api,
+  Model,
+  OAuthCredentials,
+} from "@earendil-works/pi-ai";
 
 // pi-tui type-only re-exports (the interfaces, not the classes —
 // classes are exported above as value+type pairs).
