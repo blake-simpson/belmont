@@ -1,0 +1,6 @@
+# Belmont local state — not committed.
+auto.json
+auto.stop
+.cache/
+mcp-tools-cache.json
+memory/steering/

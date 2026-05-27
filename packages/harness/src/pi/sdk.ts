@@ -58,8 +58,33 @@
 //   - examples/extensions/custom-provider-gitlab-duo/index.ts
 //   - examples/extensions/model-status.ts
 //
-// M8 will add `createAgentSessionRuntime` lifecycle wrappers for the
-// auto worker.
+// M8 (now) extends the surface with the `createAgentSessionRuntime`
+// lifecycle hooks used by the auto worker (Runtime B). Specifically:
+//
+//   - `createAgentSessionRuntime` + `createAgentSessionServices` +
+//     `createAgentSessionFromServices` + `getAgentDir` (function VALUE
+//     re-exports) — assembled inside `pi/worker.ts` into the
+//     `BelmontWorkerHandle` API surface that the auto loop consumes.
+//   - `SessionManager`, `AgentSessionRuntime`, `AgentSession` (class
+//     value+type re-exports) — needed for `SessionManager.inMemory()`
+//     factory + AgentSessionRuntime typing on the handle internals.
+//   - Type re-exports: `AgentSessionEvent`, `AgentSessionEventListener`,
+//     `CreateAgentSessionRuntimeFactory`, `CreateAgentSessionRuntimeResult`,
+//     `AgentSessionServices`, `AgentSessionRuntimeDiagnostic`, plus the
+//     `Model` shape from pi-ai used to resolve a tier into a session.
+//
+// pi-mono upstream example references (per D-001-omp-evaluation):
+//   - examples/sdk/13-session-runtime.ts (CreateAgentSessionRuntimeFactory pattern)
+//   - examples/sdk/12-full-control.ts (createAgentSession + dispose discipline)
+//   - examples/extensions/subagent/ (in-process worker pattern)
+//   - examples/extensions/message-renderer.ts (custom message renderer surface)
+//   - examples/extensions/handoff.ts (session subscribe + unsubscribe pattern)
+//   - examples/extensions/auto-commit-on-exit.ts (session_shutdown discipline)
+//
+// The §8.2 hard boundary stays intact: `createBelmontWorker` (in
+// `pi/worker.ts`) is the only file that constructs an
+// `AgentSessionRuntime` — every other harness file consumes the worker
+// via the opaque `BelmontWorkerHandle`.
 
 import {
   VERSION as PI_VERSION,
@@ -77,14 +102,30 @@ export const isToolCallEventType = piIsToolCallEventType;
 // callbacks like `(tui, theme: Theme, kb, done) => …`.
 export { Theme } from "@earendil-works/pi-coding-agent";
 
+// M8 value re-exports — the runtime + lifecycle entrypoints the worker
+// in pi/worker.ts builds against. `SessionManager`, `AgentSessionRuntime`,
+// and `AgentSession` ride as value+type pairs (classes), so callers can
+// both `instanceof` and `new`.
+export {
+  AgentSession,
+  AgentSessionRuntime,
+  SessionManager,
+  createAgentSessionFromServices,
+  createAgentSessionRuntime,
+  createAgentSessionServices,
+  getAgentDir,
+} from "@earendil-works/pi-coding-agent";
+
 // pi-tui class re-exports. As above — each is both a value and an
 // instance type, so siblings can do `private tui: TUI` for instance
 // typing as well as `new Container()` for construction.
 export {
+  Box,
   Container,
   CURSOR_MARKER,
   isFocusable,
   KeybindingsManager,
+  Text,
   TUI,
   truncateToWidth,
   visibleWidth,
@@ -103,6 +144,11 @@ export {
 // `event.model.id` outside an `on()` callback, add a local interface
 // or surface the types via a sub-path import behind this wrapper.
 export type {
+  AgentSessionConfig,
+  AgentSessionEvent,
+  AgentSessionEventListener,
+  AgentSessionRuntimeDiagnostic,
+  AgentSessionServices,
   AgentToolResult,
   AgentToolUpdateCallback,
   ApiKeyCredential,
@@ -112,6 +158,11 @@ export type {
   BeforeAgentStartEvent,
   BeforeAgentStartEventResult,
   ContextUsage,
+  CreateAgentSessionFromServicesOptions,
+  CreateAgentSessionResult,
+  CreateAgentSessionRuntimeFactory,
+  CreateAgentSessionRuntimeResult,
+  CreateAgentSessionServicesOptions,
   EditToolCallEvent,
   ExtensionAPI,
   ExtensionCommandContext,

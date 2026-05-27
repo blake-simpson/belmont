@@ -47,11 +47,22 @@
 //   - /belmont:repl-refresh (M6 Ctrl+L) invalidates the snapshot via
 //     tiering/snapshot.ts so the next read picks up live edits.
 //
+// M8 wiring (now):
+//   - /belmont:auto + /belmont:steer + /belmont:stop + /belmont:pause +
+//     /belmont:resume commands (commands/auto.ts).
+//   - belmont.worker message renderer (auto/render.ts) — worker events
+//     stream into Runtime A's left pane.
+//   - panel.setAutoActiveProbe(isAutoActive) — M6's deliberate install-
+//     point: Ctrl+B-from-active returns to PASSIVE (not closed) while
+//     auto is running.
+//
 // Future milestones extend this file:
-//   - M8: auto loop wiring + worker message renderer + autoActive
-//         probe install onto the PanelController.
+//   - M9: rtk user_bash hook + lean-ctx context hook + thinking-collapse.
 
 import type { ExtensionAPI } from "./pi/sdk.js";
+import { isAutoActive } from "./auto/loop.js";
+import { registerWorkerRenderer } from "./auto/render.js";
+import { registerAutoCommands } from "./commands/auto.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerReplRefreshCommand } from "./commands/repl-refresh.js";
@@ -80,6 +91,7 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
   registerModelsCommand(pi);
   registerSkillCommands(pi);
   registerReplRefreshCommand(pi);
+  registerAutoCommands(pi);
 
   registerBelmontTransitionTool(pi);
   registerBelmontEpisodeEventTool(pi);
@@ -88,10 +100,18 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
   registerKnowledgeGuard(pi);
   registerScopeGuard(pi);
 
+  // ── M8 worker renderer ────────────────────────────────────────────
+  // belmont.worker messages stream from the auto loop into Runtime A's
+  // pane via a custom MessageRenderer.
+  registerWorkerRenderer(pi);
+
   // ── M6 TUI ────────────────────────────────────────────────────────
   const panel = new PanelController({
     sendUserMessage: (content, options) => pi.sendUserMessage(content, options),
   });
+  // M8 install: when auto is running, Ctrl+B-from-active returns to
+  // PASSIVE (REPL retains focus) instead of closing the panel.
+  panel.setAutoActiveProbe(() => isAutoActive());
 
   const statusBarDeps = {
     pi,

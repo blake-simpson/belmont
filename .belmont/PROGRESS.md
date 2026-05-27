@@ -75,12 +75,12 @@
 
 ### M8: Auto mode (two-runtime, sequential) + lifecycle ownership + 10-iter leak test
 
-- [ ] P0-1 Sequential per-task auto loop (packages/harness/src/auto/loop.ts)
-- [ ] P0-2 createAgentSessionRuntime wrapper + dispose discipline
-- [ ] P0-3 Steering: working/steering.md consume-before-invoke
-- [ ] P0-4 Decide ladder: rules first + AI fallback (in-process)
-- [ ] P0-5 Worker message renderer streaming to Runtime A left pane
-- [ ] P0-6 10-iteration leak test (M8 ship-gate per §8.4)
+- [x] P0-1 Sequential per-task auto loop (packages/harness/src/auto/loop.ts)
+- [x] P0-2 createAgentSessionRuntime wrapper + dispose discipline
+- [x] P0-3 Steering: working/steering.md consume-before-invoke
+- [x] P0-4 Decide ladder: rules first + AI fallback (in-process)
+- [x] P0-5 Worker message renderer streaming to Runtime A left pane
+- [x] P0-6 10-iteration leak test (M8 ship-gate per §8.4)
 
 ### M9: RTK + token reduction
 
