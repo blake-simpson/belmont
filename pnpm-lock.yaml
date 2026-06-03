@@ -30,7 +30,7 @@ importers:
   packages/cli:
     dependencies:
       '@belmont/harness':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../harness
     devDependencies:
       typescript:
@@ -40,10 +40,10 @@ importers:
   packages/harness:
     dependencies:
       '@belmont/knowledge-schema':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../knowledge-schema
       '@belmont/skills':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../skills
       '@earendil-works/pi-ai':
         specifier: 0.75.5
@@ -87,7 +87,7 @@ importers:
   packages/skills:
     dependencies:
       '@belmont/knowledge-schema':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../knowledge-schema
     devDependencies:
       typescript:

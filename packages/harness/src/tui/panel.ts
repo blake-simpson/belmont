@@ -58,7 +58,7 @@ import type {
   OverlayOptions,
   TUI,
 } from "../pi/sdk.js";
-import { matchesKey } from "../pi/sdk.js";
+import { matchesKey, KeyId } from "../pi/sdk.js";
 import {
   type MarkerColorer,
   colorMarker,
@@ -428,7 +428,7 @@ class PanelComponent implements Component {
 // Helpers
 // ────────────────────────────────────────────────────────────────────
 
-function isKey(data: string, key: string): boolean {
+function isKey(data: string, key: KeyId): boolean {
   const normalized = data.toLowerCase();
   const wanted = key.toLowerCase();
   if (normalized === wanted) return true;
