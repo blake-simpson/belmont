@@ -41,19 +41,19 @@ function makeShortcutHarness() {
 }
 
 describe("registerShortcuts", () => {
-  it("registers alt+b, alt+t, alt+r (M11 §18 remap; ctrl+_ all collide with pi 0.75.5 builtins)", () => {
+  it("registers ctrl+alt+b/t/r/h (Belmont-owned chord family clear of pi 0.75.5 defaults)", () => {
     const { pi, panel } = makeShortcutHarness();
     registerShortcuts({
       pi: pi as unknown as Parameters<typeof registerShortcuts>[0]["pi"],
       panel: panel as unknown as Parameters<typeof registerShortcuts>[0]["panel"],
       onThinkingFlagChange: vi.fn(),
     });
-    expect(pi.registerShortcut).toHaveBeenCalledTimes(3);
+    expect(pi.registerShortcut).toHaveBeenCalledTimes(4);
     const keys = pi.registerShortcut.mock.calls.map(([k]) => k);
-    expect(keys.sort()).toEqual(["alt+b", "alt+r", "alt+t"]);
+    expect(keys.sort()).toEqual(["ctrl+alt+b", "ctrl+alt+h", "ctrl+alt+r", "ctrl+alt+t"]);
   });
 
-  it("alt+b → panel.toggle(ctx)", async () => {
+  it("ctrl+alt+b → panel.toggle(ctx)", async () => {
     const { pi, panel, shortcuts } = makeShortcutHarness();
     registerShortcuts({
       pi: pi as unknown as Parameters<typeof registerShortcuts>[0]["pi"],
@@ -61,11 +61,11 @@ describe("registerShortcuts", () => {
       onThinkingFlagChange: vi.fn(),
     });
     const fakeCtx = { cwd: "/x" };
-    await shortcuts["alt+b"]?.(fakeCtx);
+    await shortcuts["ctrl+alt+b"]?.(fakeCtx);
     expect(panel.toggle).toHaveBeenCalledWith(fakeCtx);
   });
 
-  it("alt+t flips the thinking-collapse flag + notifies + invokes onThinkingFlagChange", () => {
+  it("ctrl+alt+t flips the thinking-collapse flag + notifies + invokes onThinkingFlagChange", () => {
     const { pi, panel, shortcuts } = makeShortcutHarness();
     const onChange = vi.fn();
     registerShortcuts({
@@ -75,24 +75,37 @@ describe("registerShortcuts", () => {
     });
     const fakeCtx = { ui: { notify: vi.fn() } };
     expect(isThinkingCollapsed()).toBe(false);
-    shortcuts["alt+t"]?.(fakeCtx);
+    shortcuts["ctrl+alt+t"]?.(fakeCtx);
     expect(isThinkingCollapsed()).toBe(true);
     expect(fakeCtx.ui.notify).toHaveBeenCalled();
     expect(onChange).toHaveBeenCalledWith(fakeCtx);
     // Second press toggles back.
-    shortcuts["alt+t"]?.(fakeCtx);
+    shortcuts["ctrl+alt+t"]?.(fakeCtx);
     expect(isThinkingCollapsed()).toBe(false);
   });
 
-  it("alt+r queues /belmont:repl-refresh as a follow-up user message", () => {
+  it("ctrl+alt+r queues /belmont:repl-refresh as a follow-up user message", () => {
     const { pi, panel, shortcuts } = makeShortcutHarness();
     registerShortcuts({
       pi: pi as unknown as Parameters<typeof registerShortcuts>[0]["pi"],
       panel: panel as unknown as Parameters<typeof registerShortcuts>[0]["panel"],
       onThinkingFlagChange: vi.fn(),
     });
-    shortcuts["alt+r"]?.({});
+    shortcuts["ctrl+alt+r"]?.({});
     expect(pi.sendUserMessage).toHaveBeenCalledWith("/belmont:repl-refresh", { deliverAs: "followUp" });
+  });
+
+  it("ctrl+alt+h shows the Belmont help legend", () => {
+    const { pi, panel, shortcuts } = makeShortcutHarness();
+    registerShortcuts({
+      pi: pi as unknown as Parameters<typeof registerShortcuts>[0]["pi"],
+      panel: panel as unknown as Parameters<typeof registerShortcuts>[0]["panel"],
+      onThinkingFlagChange: vi.fn(),
+    });
+    const fakeCtx = { ui: { notify: vi.fn() } };
+    shortcuts["ctrl+alt+h"]?.(fakeCtx);
+    expect(fakeCtx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Ctrl+Alt+B"), "info");
+    expect(fakeCtx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("/belmont:auto"), "info");
   });
 });
 

@@ -101,6 +101,8 @@ choice — treat as read-only.
 | oh-my-pi evaluation | ADR | memory/decisions/D-001-omp-evaluation.md | tempted to adopt omp as base or its leaf packages |
 | Episodic filename grammar | ADR | memory/decisions/D-002-episodic-filename-grammar.md | adding rules to `validateProjectedKnowledgeWrite` for memory/episodic/ filenames |
 | Pi extension shape + before_agent_start | ADR | memory/decisions/D-003-pi-extension-shape.md | wiring a new pi hook, touching `pi/sdk.ts` re-exports, or revisiting the §3.3 two-hook framing |
+| Cross-harness skill namespace | ADR | memory/decisions/D-004-cross-harness-skill-namespace.md | touching standalone skill install paths or composed skill names |
+| TUI side panel + shortcuts | Subsystem | memory/subsystems/tui.md | touching `packages/harness/src/tui/*` or panel/shortcut focus behavior |
 | Stack (TS / pnpm / Node / pi / deps) | Stack singleton | memory/stack.md | choosing a library or major upgrade |
 
 > Subsystem entries are written by the `verify` skill as milestones

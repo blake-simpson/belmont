@@ -170,6 +170,7 @@ export {
   CURSOR_MARKER,
   isFocusable,
   KeybindingsManager,
+  matchesKey,
   Text,
   TUI,
   truncateToWidth,

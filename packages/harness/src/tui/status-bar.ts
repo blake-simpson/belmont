@@ -48,7 +48,7 @@ export const SLOT_KEYS = {
 
 export interface StatusBarDeps {
   pi: ExtensionAPI;
-  /** Set by tui/shortcuts.ts Alt+T toggle. M9 context-hook reads it too. */
+  /** Set by tui/shortcuts.ts Ctrl+Alt+T toggle. M9 context-hook reads it too. */
   isThinkingCollapsed: () => boolean;
 }
 

@@ -1,7 +1,7 @@
 // TUI side panel — the M6 deliverable.
 //
 // v2.3 §6.1 mockup + §6.4 focus rules:
-//   - Alt+B opens the milestone tree as a right-anchored overlay.
+//   - Ctrl+Alt+B opens the milestone tree as a right-anchored overlay.
 //   - j/k navigate; Enter on task → /belmont:implement <id>;
 //     Enter or a on milestone → /belmont:auto <M>;
 //     v on milestone → /belmont:verify <M>; Esc closes.
@@ -20,12 +20,12 @@
 //   pre-open the panel (§7).
 //
 //   The panel has THREE states ("hidden" / "passive" / "active"); the
-//   live OverlayHandle is the runtime carrier. Alt+B toggles
+//   live OverlayHandle is the runtime carrier. Ctrl+Alt+B toggles
 //   visibility (M6 keeps it simple: hidden ↔ active). The input-watcher
 //   on `/belmont:auto` opens passive (visible, unfocused) so REPL still
 //   takes keystrokes — typing goes to the editor, not the panel.
 //
-//   M8 will widen the Esc/Alt+B transitions so Esc-while-focused
+//   M8 will widen the Esc/Ctrl+Alt+B transitions so Esc-while-focused
 //   returns to passive when the auto loop is live, instead of closing.
 //   The auto-active predicate is hooked into the controller through
 //   `setAutoActiveProbe()` — M6 always returns false.
@@ -58,6 +58,7 @@ import type {
   OverlayOptions,
   TUI,
 } from "../pi/sdk.js";
+import { matchesKey } from "../pi/sdk.js";
 import {
   type MarkerColorer,
   colorMarker,
@@ -134,7 +135,7 @@ export function renderPanelLines(
   );
   const taskTotal = parsed.milestones.reduce((n, m) => n + m.tasks.length, 0);
   const header = `Belmont — ${parsed.milestones.length} milestones · ${verifiedTotal}/${taskTotal} verified`;
-  const footer = "  j/k nav · Enter implement · a auto · v verify · Esc close";
+  const footer = "  ↑/↓/j/k nav · Enter implement · a auto · v verify · Esc/Ctrl+Alt+B close";
   const body = rows.map((row, i) => renderRow(row, i === cursor, colorer));
   if (body.length === 0) {
     return [header, "", "  (no milestones — run /belmont:init)", "", footer];
@@ -158,19 +159,21 @@ export type PanelDispatch =
   | { kind: "command"; command: string };
 
 export function commandForKey(rows: PanelRow[], cursor: number, key: string): PanelDispatch {
-  if (key === "Esc" || key === "") return { kind: "close" };
+  if (isKey(key, "escape") || isKey(key, "ctrl+c") || isKey(key, "ctrl+alt+b")) {
+    return { kind: "close" };
+  }
   if (rows.length === 0) return { kind: "noop" };
   const row = rows[cursor];
   if (!row) return { kind: "noop" };
   if (row.kind === "task") {
-    if (key === "Enter" || key === "\r") {
+    if (isKey(key, "enter")) {
       if (!row.task.id) return { kind: "noop" };
       return { kind: "command", command: `/belmont:implement ${row.task.id}` };
     }
     return { kind: "noop" };
   }
   // milestone
-  if (key === "Enter" || key === "\r" || key === "a") {
+  if (isKey(key, "enter") || key === "a") {
     return { kind: "command", command: `/belmont:auto ${row.milestone.id}` };
   }
   if (key === "v") {
@@ -236,7 +239,7 @@ export class PanelController {
     }
   }
 
-  /** Alt+B handler: hidden→active, active→hidden, passive→active. */
+  /** Ctrl+Alt+B handler: hidden→active, active→hidden, passive→active. */
   async toggle(ctx: ExtensionContext): Promise<void> {
     if (this.state === "hidden") {
       await this.openInternal(ctx, /* focused */ true);
@@ -309,7 +312,7 @@ export class PanelController {
     await this.reparse(ctx.cwd);
     // `ctx.ui.custom` returns a Promise that resolves when done() is called.
     // We don't await it here — we wire `done` to close the panel and
-    // continue concurrently so the caller (a Alt+B handler, the input
+    // continue concurrently so the caller (a Ctrl+Alt+B handler, the input
     // watcher) returns immediately.
     void ctx.ui
       .custom<undefined>(
@@ -397,12 +400,12 @@ class PanelComponent implements Component {
   }
 
   handleInput(data: string): void {
-    if (data === "j" || data === "[B") {
+    if (data === "j" || isKey(data, "down")) {
       this.controller._moveCursor(1);
       this.tui.requestRender();
       return;
     }
-    if (data === "k" || data === "[A") {
+    if (data === "k" || isKey(data, "up")) {
       this.controller._moveCursor(-1);
       this.tui.requestRender();
       return;
@@ -424,6 +427,14 @@ class PanelComponent implements Component {
 // ────────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────────
+
+function isKey(data: string, key: string): boolean {
+  const normalized = data.toLowerCase();
+  const wanted = key.toLowerCase();
+  if (normalized === wanted) return true;
+  if (wanted === "escape" && normalized === "esc") return true;
+  return matchesKey(data, key);
+}
 
 function panelOverlayOptions(): OverlayOptions {
   // Right-anchored, ~50 cols wide, up to 80% of terminal height.

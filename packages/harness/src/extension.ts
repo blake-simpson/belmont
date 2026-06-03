@@ -31,7 +31,7 @@
 //                                   with j/k/Enter/a/v/Esc keymap.
 //   - tui/status-bar.ts           — 4-slot status bar +
 //                                   1s ctx-usage polling.
-//   - tui/shortcuts.ts            — Alt+B/T/R global hotkeys (M11 §18
+//   - tui/shortcuts.ts            — Ctrl+Alt+B/T/R/H global hotkeys (M11 §18
 //                                   remapped from the original
 //                                   Ctrl+B/O/L; pi 0.75.5 reserves
 //                                   those Ctrl letters) + the
@@ -40,14 +40,14 @@
 //   - tui/widget-progress.ts      — above-editor progress widget
 //                                   helpers (M6 P1 stub; M8 wires data).
 //   - commands/repl-refresh.ts    — /belmont:repl-refresh that backs
-//                                   the Alt+R shortcut's newSession.
+//                                   the Ctrl+Alt+R shortcut's newSession.
 //
 // M7 wiring (now):
 //   - session_start: refresh the models.json snapshot AND, when the
 //     file validates, call registerConfiguredProviders so codex/kimi/
 //     openai-compatible/ollama become available before the user runs
 //     /model or /belmont:auto.
-//   - /belmont:repl-refresh (M6 Alt+R) invalidates the snapshot via
+//   - /belmont:repl-refresh (M6 Ctrl+Alt+R) invalidates the snapshot via
 //     tiering/snapshot.ts so the next read picks up live edits.
 //
 // M8 wiring (now):
@@ -56,7 +56,7 @@
 //   - belmont.worker message renderer (auto/render.ts) — worker events
 //     stream into Runtime A's left pane.
 //   - panel.setAutoActiveProbe(isAutoActive) — M6's deliberate install-
-//     point: Alt+B-from-active returns to PASSIVE (not closed) while
+//     point: Ctrl+Alt+B-from-active returns to PASSIVE (not closed) while
 //     auto is running.
 //
 // M9 wiring (now):
@@ -180,7 +180,7 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
   const panel = new PanelController({
     sendUserMessage: (content, options) => pi.sendUserMessage(content, options),
   });
-  // M8 install: when auto is running, Alt+B-from-active returns to
+  // M8 install: when auto is running, Ctrl+Alt+B-from-active returns to
   // PASSIVE (REPL retains focus) instead of closing the panel.
   panel.setAutoActiveProbe(() => isAutoActive());
 
@@ -212,7 +212,7 @@ export const belmontExtension = (pi: ExtensionAPI): void => {
 
   pi.on("session_start", async (_event, ctx) => {
     await refreshSnapshot(ctx.cwd);
-    // Pre-prime the panel's parse cache so the first Alt+B opens
+    // Pre-prime the panel's parse cache so the first Ctrl+Alt+B opens
     // without an empty flash.
     await panel.refresh(ctx.cwd);
 

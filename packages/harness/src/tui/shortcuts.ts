@@ -1,10 +1,11 @@
 // Global hotkeys — the M6 deliverable.
 //
 // v2.3 §17 M6 "Done when":
-//   - Alt+B opens/toggles the panel
-//   - Alt+T toggles thinking-block visibility globally (a session-
+//   - Ctrl+Alt+B opens/toggles the panel
+//   - Ctrl+Alt+T toggles thinking-block visibility globally (a session-
 //     state flag the message renderer respects)
-//   - Alt+R runs `ctx.newSession()` on Runtime A (manual REPL refresh)
+//   - Ctrl+Alt+R runs `ctx.newSession()` on Runtime A (manual REPL refresh)
+//   - Ctrl+Alt+H shows a short Belmont shortcut/command legend
 //
 // **Hotkey history (M11 §18 fix).** The original M6 bindings were
 // `Ctrl+B / Ctrl+O / Ctrl+L` (mirroring tmux + a few common TUIs).
@@ -13,17 +14,18 @@
 // (`tui.editor.cursorLeft`) — three of those swallow our handlers
 // outright (registerShortcut → "skipped"), and Ctrl+B "wins" only by
 // stealing pi's editor cursor-left. The M11 ship-gate dogfood
-// surfaced the warnings; we remapped to `alt+` prefix per Blake's
-// pick — the alt-prefix space is free in pi 0.75.5 and conventional
-// in TUIs.
+// surfaced the warnings; we first remapped to `alt+`, but pi 0.75.5
+// reserves readline-style Alt+B/F/D/Y keys too. We now use a
+// Belmont-owned `ctrl+alt+` chord family: mnemonic, currently clear of
+// pi defaults, and still backed by slash-command fallbacks.
 //
 // In-panel keys (j/k/Enter/a/v/Esc) live on the PanelComponent in
 // tui/panel.ts — they're NOT pi.registerShortcut bindings, because
 // pi-tui's overlay system routes input to the focused overlay's
 // Component.handleInput. That keeps in-panel keys scoped to the
-// panel; the three Alt+_ bindings here are the only *global* ones.
+// panel; the Ctrl+Alt bindings here are the only *global* ones.
 //
-// Alt+R plumbing: pi.registerShortcut hands the handler an
+// Ctrl+Alt+R plumbing: pi.registerShortcut hands the handler an
 // ExtensionContext (NOT an ExtensionCommandContext), so we cannot call
 // `ctx.newSession()` from the shortcut directly. Instead, the
 // shortcut sends `/belmont:repl-refresh` as a follow-up user message;
@@ -32,7 +34,7 @@
 // the same indirection pi's own `examples/extensions/reload-runtime.ts`
 // uses for its `reload_runtime` tool → `/reload-runtime` command chain.
 //
-// Alt+T wires only the FLAG today; the M9 context-hook
+// Ctrl+Alt+T wires only the FLAG today; the M9 context-hook
 // (`hooks/thinking-collapse.ts`) reads `isThinkingCollapsed()` to
 // actually blank thinking blocks. The status bar's `belmont.model`
 // slot reflects the flag immediately (suffix `· thinking-collapse`)
@@ -65,21 +67,36 @@ export function resetThinkingCollapseFlag(): void {
 export interface ShortcutDeps {
   pi: ExtensionAPI;
   panel: PanelController;
-  /** Called after Alt+T flips the flag — typically `() => recomputeStatusSlots(...)`. */
+  /** Called after Ctrl+Alt+T flips the flag — typically `() => recomputeStatusSlots(...)`. */
   onThinkingFlagChange: (ctx: ExtensionContext) => void;
 }
+
+const BELMONT_HELP_LEGEND = [
+  "Belmont shortcuts",
+  "  Ctrl+Alt+B  Toggle side panel",
+  "  Ctrl+Alt+T  Toggle thinking-block collapse",
+  "  Ctrl+Alt+R  Refresh REPL session",
+  "  Ctrl+Alt+H  Show this legend",
+  "",
+  "Useful commands",
+  "  /belmont:status  Show milestone state",
+  "  /belmont:auto    Run ready tasks sequentially",
+  "  /belmont:stop    Stop auto mode",
+  "  /belmont:models  Check model tiers/providers",
+  "  /belmont:mcp     Check MCP bridge",
+].join("\n");
 
 export function registerShortcuts(deps: ShortcutDeps): void {
   const { pi, panel, onThinkingFlagChange } = deps;
 
-  pi.registerShortcut("alt+b", {
+  pi.registerShortcut("ctrl+alt+b", {
     description: "Toggle the Belmont side panel",
     handler: async (ctx) => {
       await panel.toggle(ctx);
     },
   });
 
-  pi.registerShortcut("alt+t", {
+  pi.registerShortcut("ctrl+alt+t", {
     description: "Toggle thinking-block collapse (session-state flag)",
     handler: (ctx) => {
       thinkingCollapsed = !thinkingCollapsed;
@@ -93,10 +110,17 @@ export function registerShortcuts(deps: ShortcutDeps): void {
     },
   });
 
-  pi.registerShortcut("alt+r", {
+  pi.registerShortcut("ctrl+alt+r", {
     description: "Refresh the Belmont REPL (ctx.newSession on Runtime A)",
     handler: () => {
       pi.sendUserMessage("/belmont:repl-refresh", { deliverAs: "followUp" });
+    },
+  });
+
+  pi.registerShortcut("ctrl+alt+h", {
+    description: "Show Belmont shortcut and command legend",
+    handler: (ctx) => {
+      ctx.ui.notify(BELMONT_HELP_LEGEND, "info");
     },
   });
 }

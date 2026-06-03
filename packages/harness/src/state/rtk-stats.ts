@@ -1,7 +1,7 @@
 // RTK savings counter — the per-session running total surfaced in the
 // status bar's `belmont.model` slot (v2.3 §11.4 + §6.1).
 //
-// "Per-session" means the counter resets on every Alt+R REPL refresh
+// "Per-session" means the counter resets on every Ctrl+Alt+R REPL refresh
 // (commands/repl-refresh.ts calls `resetRtkStats()` alongside
 // `invalidateModelsJsonSnapshot()`), and on `session_start` events
 // (extension.ts re-registers it). It does NOT survive across `pi` runs;

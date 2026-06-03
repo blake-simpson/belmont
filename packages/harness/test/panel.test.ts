@@ -70,7 +70,7 @@ describe("renderPanelLines / renderPanelLinesPlain", () => {
     const lines = renderPanelLinesPlain(parsed, 0);
     expect(lines[0]).toBe("Belmont — 2 milestones · 1/5 verified");
     expect(lines).toContain("▶ M0: Spike — done (1/2)");
-    expect(lines[lines.length - 1]).toContain("Esc close");
+    expect(lines[lines.length - 1]).toContain("Esc/Ctrl+Alt+B close");
   });
 
   it("empty-progress fallback shows 'run /belmont:init' hint", () => {
@@ -108,13 +108,21 @@ describe("commandForKey", () => {
   const parsed = parseProgress(SAMPLE);
   const rows = panelRows(parsed);
 
-  it("Esc → close (regardless of cursor row)", () => {
+  it("Esc/Ctrl+C/Ctrl+Alt+B → close (regardless of cursor row)", () => {
     expect(commandForKey(rows, 0, "Esc")).toEqual({ kind: "close" });
+    expect(commandForKey(rows, 0, "escape")).toEqual({ kind: "close" });
     expect(commandForKey(rows, 3, "")).toEqual({ kind: "close" });
+    expect(commandForKey(rows, 3, "")).toEqual({ kind: "close" });
+    expect(commandForKey(rows, 3, "ctrl+c")).toEqual({ kind: "close" });
+    expect(commandForKey(rows, 3, "")).toEqual({ kind: "close" });
   });
 
   it("Enter on task → /belmont:implement <id>", () => {
     expect(commandForKey(rows, 1, "Enter")).toEqual({
+      kind: "command",
+      command: "/belmont:implement P0-1",
+    });
+    expect(commandForKey(rows, 1, "enter")).toEqual({
       kind: "command",
       command: "/belmont:implement P0-1",
     });
@@ -327,7 +335,7 @@ describe("PanelController", () => {
     }
   });
 
-  it("Alt+B (toggle) from passive → active (focus)", async () => {
+  it("Ctrl+Alt+B (toggle) from passive → active (focus)", async () => {
     const cwd = await makeRepoWithProgress(SAMPLE);
     try {
       const ctrl = new PanelController({ sendUserMessage: vi.fn() });
@@ -344,7 +352,7 @@ describe("PanelController", () => {
     }
   });
 
-  it("Alt+B (toggle) from active → hidden (M6 behaviour; M8 widens)", async () => {
+  it("Ctrl+Alt+B (toggle) from active → hidden (M6 behaviour; M8 widens)", async () => {
     const cwd = await makeRepoWithProgress(SAMPLE);
     try {
       const ctrl = new PanelController({ sendUserMessage: vi.fn() });
@@ -405,7 +413,7 @@ describe("PanelController", () => {
     }
   });
 
-  it("j/k move cursor and trigger re-render", async () => {
+  it("arrow keys and j/k move cursor and trigger re-render", async () => {
     const cwd = await makeRepoWithProgress(SAMPLE);
     try {
       const send = vi.fn();
@@ -417,30 +425,34 @@ describe("PanelController", () => {
       expect(ctrl.getCursor()).toBe(0);
       ctxWrap.emitInput("j");
       expect(ctrl.getCursor()).toBe(1);
-      ctxWrap.emitInput("j");
+      ctxWrap.emitInput("down");
       expect(ctrl.getCursor()).toBe(2);
       ctxWrap.emitInput("k");
       expect(ctrl.getCursor()).toBe(1);
+      ctxWrap.emitInput("up");
+      expect(ctrl.getCursor()).toBe(0);
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }
   });
 
-  it("Esc dismisses the panel without sending any command", async () => {
-    const cwd = await makeRepoWithProgress(SAMPLE);
-    try {
-      const send = vi.fn();
-      const ctrl = new PanelController({ sendUserMessage: send });
-      const ctxWrap = makeFakeCtx(cwd);
-      await ctrl.openActive(ctxWrap.ctx as unknown as Parameters<PanelController["openActive"]>[0]);
-      const handle = makeFakeHandle(true);
-      ctxWrap.resolveCustom(handle);
-      ctxWrap.emitInput("");
-      expect(send).not.toHaveBeenCalled();
-      await flushMicrotasks();
-      expect(ctrl.getState()).toBe("hidden");
-    } finally {
-      await rm(cwd, { recursive: true, force: true });
+  it("Esc/Ctrl+C/Ctrl+Alt+B dismiss the focused panel without sending any command", async () => {
+    for (const input of ["", "", ""]) {
+      const cwd = await makeRepoWithProgress(SAMPLE);
+      try {
+        const send = vi.fn();
+        const ctrl = new PanelController({ sendUserMessage: send });
+        const ctxWrap = makeFakeCtx(cwd);
+        await ctrl.openActive(ctxWrap.ctx as unknown as Parameters<PanelController["openActive"]>[0]);
+        const handle = makeFakeHandle(true);
+        ctxWrap.resolveCustom(handle);
+        ctxWrap.emitInput(input);
+        expect(send).not.toHaveBeenCalled();
+        await flushMicrotasks();
+        expect(ctrl.getState()).toBe("hidden");
+      } finally {
+        await rm(cwd, { recursive: true, force: true });
+      }
     }
   });
 
