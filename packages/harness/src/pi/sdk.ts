@@ -168,6 +168,8 @@ export {
   Box,
   Container,
   CURSOR_MARKER,
+  Editor,
+  Key,
   isFocusable,
   KeybindingsManager,
   matchesKey,
@@ -175,6 +177,7 @@ export {
   TUI,
   truncateToWidth,
   visibleWidth,
+  wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 
 // pi-coding-agent type re-exports. Sibling modules (extension.ts,
