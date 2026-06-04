@@ -7,6 +7,8 @@ description: Plan ONE feature — write its PRD, mint its milestones and tasks i
 
 <!-- @include _shared/harness-optional.md -->
 
+<!-- @include _shared/ask-user.md -->
+
 You are running ONE conversational planning session for ONE feature in
 the project's Master PRD index. By the end of the session:
 
@@ -58,9 +60,10 @@ load the entire tree.
 
 ## Step 2 — Interview
 
-Ask the user in one or two structured batches until you have concrete
-answers for the **Domains** in play. Prefer fewer, higher-signal
-questions over a long survey.
+Ask the user (via `belmont_ask_user` — see "Asking the user" above) in
+one or two structured batches until you have concrete answers for the
+**Domains** in play. Offer concrete `choices` where the answer space is
+known; prefer fewer, higher-signal questions over a long survey.
 
 ### Product domains
 

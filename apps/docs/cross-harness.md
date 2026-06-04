@@ -89,8 +89,9 @@ tools DON'T exist. Each skill body MUST detect this and fall back:
   (`[ ] [>] [x] [v] [!]`).
 - `belmont_episode_event` → fallback to `Edit` against
   `.belmont/memory/episodic/<date>-<slug>.md`, appending a bullet.
-- `belmont_ask_user` → fallback to plain prompt text "Please answer:
-  ..." and proceed on the user's reply.
+- `belmont_ask_user` → fallback to the host's own question UI when it
+  has one (e.g. Claude Code's AskUserQuestion); otherwise plain prompt
+  text "Please answer: ..." and proceed on the user's reply.
 
 The `_shared/harness-optional.md` partial (inlined into every skill
 body via `<!-- @include _shared/harness-optional.md -->`) carries

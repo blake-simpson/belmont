@@ -56,6 +56,13 @@ export function buildBelmontAskUserTool(): ToolDefinition<
     label: "Belmont ask user",
     description:
       "Pause and ask the human a question via the harness UI. Pass `choices` for a select dialog or omit them for a free-text input dialog. Fails when no UI is attached (print/RPC mode) — in that case ask the user directly in your response instead.",
+    promptSnippet:
+      "Surface a clarifying or decision question to the human through the harness UI. Pass `choices` for a pick-list dialog, or omit them for a free-text prompt; returns the user's answer.",
+    promptGuidelines: [
+      "When a skill needs a clarifying or decision answer from the user, call belmont_ask_user instead of writing the question into your text reply — it renders a real selectable dialog.",
+      "Pass `choices` (2–8 mutually-exclusive options) for a pick-list; omit `choices` for an open-ended free-text question, optionally with a `placeholder`.",
+      "If the call fails because no UI is attached (auto/print/RPC mode), fall back to asking the question directly in your response.",
+    ],
     parameters: ASK_USER_SCHEMA,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       return await executeBelmontAskUser(ctx, params);

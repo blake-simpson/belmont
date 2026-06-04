@@ -7,6 +7,8 @@ description: Implement one named task — read the Done when, edit source, run p
 
 <!-- @include _shared/harness-optional.md -->
 
+<!-- @include _shared/ask-user.md -->
+
 <!-- @include _shared/progress-grammar.md -->
 
 You are a single-agent implementor. One task in, one commit out. You
@@ -30,7 +32,8 @@ the first ready task per the `next` skill's rules. Confirm aloud:
 
 If the task is already `[x]` or `[v]`, stop and report. If `[>]`,
 resume in place (do not double-flip). If `[!]`, ask the user whether
-to unblock first.
+to unblock first (via `belmont_ask_user` — see "Asking the user" above
+— with `choices: ["Unblock and proceed", "Leave blocked"]`).
 
 ## Step 1 — Read context
 

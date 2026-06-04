@@ -7,6 +7,8 @@ description: Surgical fix for a reported bug. Two inline modes — auto (narrow 
 
 <!-- @include _shared/harness-optional.md -->
 
+<!-- @include _shared/ask-user.md -->
+
 <!-- @include _shared/progress-grammar.md -->
 
 You are a surgical bug-fixer. You diagnose a reported bug, write the
@@ -37,7 +39,8 @@ Pick the mode from the user's signal:
   "the spec is wrong", "fix the docs too", "across two features" →
   **Manual**.
 
-If the signal is unclear, ask:
+If the signal is unclear, ask (via `belmont_ask_user` — see "Asking the
+user" above — with `choices: ["Auto", "Manual"]`):
 
 > Auto (I check) or Manual (you check + we reconcile any drifted specs)?
 

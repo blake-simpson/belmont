@@ -7,6 +7,8 @@ description: Build a throwaway prototype to make a hard design tradeoff visible 
 
 <!-- @include _shared/harness-optional.md -->
 
+<!-- @include _shared/ask-user.md -->
+
 <!-- @include _shared/knowledge-discipline.md -->
 
 A prototype is **throwaway code that answers one question** so the
@@ -51,8 +53,9 @@ The question is the input. Sources, in order:
 - A `/belmont:plan` pointer — if planning flagged a decision and
   recommended prototyping it, the plan's `## Open questions` row IS
   the question.
-- Otherwise ask the user one focused question: *"What decision are we
-  de-risking, and what are the candidate answers?"*
+- Otherwise ask the user one focused question (via `belmont_ask_user` —
+  see "Asking the user" above): *"What decision are we de-risking, and
+  what are the candidate answers?"*
 
 Write the one-sentence question at the top of every prototype file as
 a comment so it never gets lost.

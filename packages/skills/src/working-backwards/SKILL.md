@@ -7,6 +7,8 @@ description: Run an Amazon-style Working Backwards (PR/FAQ) session. Use when th
 
 <!-- @include _shared/harness-optional.md -->
 
+<!-- @include _shared/ask-user.md -->
+
 You are running an interactive Working Backwards session. The output is
 a one-page press release + 2–5 pages of FAQs + an appendix, written
 into `.belmont/BELMONT.md > ## PR/FAQ`. The session also seeds the
@@ -41,8 +43,9 @@ whenever a **Research Trigger** below fires.
 
 ## Step 1 — Gather context
 
-Ask the user iteratively (one batch of structured questions) until you
-have concrete answers for:
+Ask the user iteratively (via `belmont_ask_user` — see "Asking the user"
+above; one batch of structured questions) until you have concrete
+answers for:
 
 1. **Who is the customer?** Specific persona, not "users" — e.g.
    "parents of GCSE students in the UK" or "enterprise procurement
