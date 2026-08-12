@@ -33,7 +33,7 @@ Every other tool (Claude Code, opencode, Cursor, Windsurf, Gemini, GitHub Copilo
 ## Don't re-do
 
 - **"Make every tool use the packet handoff for consistency."** Rejected. Only Codex has the plan-mode/write split; the other seven tools write in-session. Routing all of them through a two-step apply would add a pointless manual step everywhere to paper over one tool's constraint.
-- **"Gate the skill to Codex-only mechanically at install time."** Deferred, not done. There is no platform/agent-conditional skill-install mechanism today (contrast `claudeOnlySkills` in `main.go`, which *hides* a skill from non-Claude tools but is a hard-coded allow/deny map, not general platform-conditionality). The interim best patch is the `codex-` name prefix + prose banners. A real per-tool skill-visibility mechanism is the right future fix; see [`skill-format.md`](skill-format.md) for the install surface it would hook into.
+- **"Gate `codex-plan-apply` to Codex-only mechanically at install time."** Still deferred for this skill. Belmont now has a narrow selected-tool visibility hook for conditional interactive-loop skills (see `conditionalSharedSurfaceSkills` in [`skill-format.md`](skill-format.md)), but `codex-plan-apply` intentionally remains prose-scoped for now: the `codex-` name prefix and refusal cases keep the compatibility bridge legible without changing existing install surfaces.
 - **"Just avoid Codex plan mode and write files directly."** Rejected — that throws away the structured pick-list interview, which is the single best planning UX Belmont has on any tool.
 - **"Write the files from inside plan mode."** Rejected — direct writes are the thing that's unreliable/unavailable in Codex plan mode; that's the constraint this whole path routes around.
 - **"Have `codex-plan-apply` fix up or normalise the content as it writes."** Rejected — it must apply verbatim. Any normalisation is a planning decision and belongs in `product-plan` / `tech-plan` before the packet is emitted.
@@ -46,4 +46,5 @@ Every other tool (Claude Code, opencode, Cursor, Windsurf, Gemini, GitHub Copilo
 
 ## Revisions
 
-- 2026-06-09 — created when landing PR #19; renamed the skill `plan-apply` → `codex-plan-apply` and recorded the prose-only (un-gated) Codex scoping as a known interim, with mechanical per-tool skill visibility flagged as future work.
+- 2026-06-09 — created when landing PR #19; renamed the skill `plan-apply` → `codex-plan-apply` and recorded the prose-only (un-gated) Codex scoping as a known interim.
+- 2026-08-12 — noted that Belmont now has a selected-tool visibility hook for conditional interactive-loop skills, but `codex-plan-apply` remains prose-scoped by design.

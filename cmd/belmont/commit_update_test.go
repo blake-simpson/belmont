@@ -348,7 +348,7 @@ func TestLinkClaudeCommands_PrunesStaleEntries(t *testing.T) {
 	}
 }
 
-func TestLinkClaudeCommands_WritesClaudeOnlyAsRealFile(t *testing.T) {
+func TestLinkClaudeCommands_WritesOffSurfaceSkillAsRealFile(t *testing.T) {
 	dir := t.TempDir()
 	skillsTarget := filepath.Join(dir, ".agents/skills/belmont")
 	mustWrite(t, filepath.Join(skillsTarget, "implement/SKILL.md"), "---\nname: implement\ndescription: x\n---\nbody\n")
@@ -366,8 +366,8 @@ func TestLinkClaudeCommands_WritesClaudeOnlyAsRealFile(t *testing.T) {
 		t.Errorf("implement.md should be a symlink, got %v / err %v", st.Mode(), err)
 	}
 
-	// The claude-only skill is a REAL file (not a symlink) with the supplied
-	// content — it has no .agents/skills/belmont/loop/ target to point at.
+	// The off-surface skill is a REAL file (not a symlink) with the supplied
+	// content because it has no .agents/skills/belmont/loop/ target to point at.
 	loopPath := filepath.Join(dir, ".claude/commands/belmont/loop.md")
 	st, err := os.Lstat(loopPath)
 	if err != nil {
@@ -391,7 +391,7 @@ func TestLinkClaudeCommands_WritesClaudeOnlyAsRealFile(t *testing.T) {
 		t.Errorf("loop must not appear under .agents/skills/belmont/")
 	}
 
-	// Re-running is idempotent and the claude-only file survives the prune.
+	// Re-running is idempotent and the off-surface file survives the prune.
 	if err := linkClaudeCommands(dir, skillsTarget, extra); err != nil {
 		t.Fatalf("second linkClaudeCommands: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestLinkClaudeCommands_WritesClaudeOnlyAsRealFile(t *testing.T) {
 	}
 }
 
-func TestSyncSkillsFolderDir_SkipsClaudeOnly(t *testing.T) {
+func TestSyncSkillsFolderDir_HidesLoopWithoutCodex(t *testing.T) {
 	src := t.TempDir()
 	dst := t.TempDir()
 	mustWrite(t, filepath.Join(src, "implement/SKILL.md"), "---\nname: implement\n---\nbody\n")
@@ -408,7 +408,7 @@ func TestSyncSkillsFolderDir_SkipsClaudeOnly(t *testing.T) {
 	// Plant a stale loop copy in the target from a hypothetical older install.
 	mustWrite(t, filepath.Join(dst, "loop/SKILL.md"), "old\n")
 
-	if err := syncSkillsFolderDir(src, dst); err != nil {
+	if err := syncSkillsFolderDir(src, dst, []string{"cursor"}); err != nil {
 		t.Fatalf("syncSkillsFolderDir: %v", err)
 	}
 
@@ -416,7 +416,25 @@ func TestSyncSkillsFolderDir_SkipsClaudeOnly(t *testing.T) {
 		t.Errorf("implement should be synced: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dst, "loop/SKILL.md")); err == nil {
-		t.Errorf("claude-only loop must be skipped AND any stale copy pruned from .agents/skills/")
+		t.Errorf("loop must be skipped without Codex AND any stale copy pruned from .agents/skills/")
+	}
+}
+
+func TestSyncSkillsFolderDir_InstallsLoopForCodex(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	mustWrite(t, filepath.Join(src, "implement/SKILL.md"), "---\nname: implement\n---\nbody\n")
+	mustWrite(t, filepath.Join(src, "loop/SKILL.md"), "---\nname: loop\n---\nbody\n")
+
+	if err := syncSkillsFolderDir(src, dst, []string{"codex"}); err != nil {
+		t.Fatalf("syncSkillsFolderDir: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dst, "implement/SKILL.md")); err != nil {
+		t.Errorf("implement should be synced: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "loop/SKILL.md")); err != nil {
+		t.Errorf("loop should be synced for Codex installs: %v", err)
 	}
 }
 

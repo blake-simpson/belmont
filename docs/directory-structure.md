@@ -82,7 +82,7 @@ your-project/
 │           └── ...              # one folder per skill: working-backwards, product-plan, tech-plan,
 │                                # next, debug, debug-auto, debug-manual, status, review-plans,
 │                                # repair, codex-plan-apply, note, cleanup, reset
-│                                # (loop is Claude-only and is NOT here — see below)
+│                                # (loop is here only when Codex is selected — see below)
 ├── .belmont/                    # Planning & state (commit to share with team)
 │   ├── PR_FAQ.md
 │   ├── PRD.md                   # Living spec (no status markers — purely requirements)
@@ -105,7 +105,7 @@ your-project/
 │       └── belmont/              # one .md symlink per skill — each registers as /belmont:<skill>
 │           ├── implement.md   -> ../../../.agents/skills/belmont/implement/SKILL.md
 │           ├── verify.md      -> ../../../.agents/skills/belmont/verify/SKILL.md
-│           ├── loop.md           # Claude-only — a REAL file (not a symlink); kept off .agents/skills/ so other CLIs never list it
+│           ├── loop.md           # real file when loop is kept off .agents/skills/; otherwise a symlink
 │           └── ...               (per-skill symlinks)
 ├── .opencode/                   # opencode (if selected)
 │   └── command/
@@ -116,7 +116,7 @@ your-project/
 └── ...
 ```
 
-The `loop` skill is **Claude Code only** — it is written as a real `.claude/commands/belmont/loop.md` file (its content copied from the generated SKILL.md) and is deliberately **not** synced into `.agents/skills/belmont/`, so the other seven CLIs never discover or list it. It delegates to Claude Code's built-in `/loop`, which the others don't have.
+The `loop` skill is conditional. Claude Code always gets `/belmont:loop`: if `loop` is kept off `.agents/skills/belmont/`, Belmont writes a real `.claude/commands/belmont/loop.md` file copied from the generated SKILL.md; if Codex is also selected and `loop` is on the shared surface, Claude gets the normal symlink. Codex installs `loop` into `.agents/skills/belmont/loop/` so `$belmont:loop` can start `/goal`. Other shared-surface CLIs do not get `loop` by default.
 
 Codex, Cursor, Windsurf, Gemini, GitHub Copilot, Pi, and opencode all auto-discover `.agents/skills/belmont/<skill>/SKILL.md` natively (see [supported-tools.md](supported-tools.md)). opencode additionally gets the `.opencode/command/belmont/` wrapper commands above, because its TUI `/` autocomplete only lists commands, not skills. Codex additionally gets per-skill `agents/openai.yaml` UI metadata inside the canonical skill folders (`interface.display_name: "belmont:<skill>"`), so typing `$belmont` in its composer lists every skill — Codex's `/` menu only shows built-ins and can't be extended.
 

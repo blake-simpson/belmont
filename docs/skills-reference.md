@@ -102,16 +102,16 @@ Runs verification and code review on all completed tasks.
 
 ## `loop`
 
-**Claude Code only.** Drives a single feature to completion from inside the Claude Code REPL, advancing it milestone-by-milestone without you re-typing each skill. Usage: `/belmont:loop <feature-name>`.
+**Claude Code or Codex.** Drives a single feature to completion from inside the interactive REPL, advancing it milestone-by-milestone without you re-typing each skill. Usage: `/belmont:loop <feature-name>` in Claude Code, or `$belmont:loop <feature-name>` / `belmont:loop <feature-name>` in Codex.
 
 - Resolves `<feature-name>` to one feature slug (prompts if omitted or ambiguous), then runs a self-paced loop where each iteration:
   1. `/belmont:implement <feature>` — build the next pending milestone
   2. `/belmont:verify <feature>` — verify what was just built
   3. `/belmont:next <feature>` (repeated until clear) + re-verify — if verify reports follow-ups or failures
   4. `/belmont:status <feature>` — stop if no pending milestones remain, otherwise continue
-- Delegates to Claude Code's built-in `/loop` skill (self-paced via `ScheduleWakeup`), which is why it is installed **only for Claude Code** — other CLIs don't have those mechanics. It is written as a real `.claude/commands/belmont/loop.md` command and is deliberately kept off the shared `.agents/skills/` surface so other tools never list it.
+- Delegates to the host tool's long-running primitive: Claude Code's built-in `/loop`, or Codex Goal mode via `/goal`. Other shared-surface CLIs do not have matching interactive loop mechanics, so Belmont keeps `loop` hidden unless Claude Code or Codex is selected for the install.
 - Stays scoped to the one named feature — never starts unrelated work, never edits milestone structure.
-- The interactive counterpart to the headless `belmont auto` CLI (also aliased `belmont loop`). Use `/belmont:loop` to stay in the REPL and watch/steer; use `belmont auto` for fully headless, parallel, worktree-based execution.
+- The interactive counterpart to the headless `belmont auto` CLI (also aliased `belmont loop`). Use `/belmont:loop` or `$belmont:loop` to stay in the REPL and watch/steer; use `belmont auto` for fully headless, parallel, worktree-based execution.
 
 ## `debug`
 

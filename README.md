@@ -324,7 +324,7 @@ go run ./cmd/belmont install --source . --project /tmp/test-project --no-prompt
 | `implement`         | Full milestone implementation pipeline (3 agents) |
 | `next`              | Implement a single task (lightweight)             |
 | `verify`            | Verification and code review                      |
-| `loop`              | **Claude Code only** — drive one feature to completion (implement → verify → next → status) via `/loop` |
+| `loop`              | **Claude Code or Codex** — drive one feature to completion (implement → verify → next → status) via `/loop` or `/goal` |
 | `debug`             | Debug router (auto or manual)                     |
 | `debug-auto`        | Auto debug loop with agent verification           |
 | `debug-manual`      | User-verified debug loop with deep Belmont context + in-place spec reconciliation |
