@@ -581,6 +581,14 @@ func syncSkillCommands(projectRoot, skillsTarget, commandsRelDir, tool string, w
 	// install where the skill lived under `.agents/skills/`) is removed first
 	// so we don't write through it.
 	for name, content := range extra {
+		// The extras map is the one route that bypasses the walk above, so it
+		// takes the same runnability check. Unreachable today (only Claude is
+		// handed extras, and it can run everything in
+		// offSurfaceClaudeCommandSkills) — the guard is here so the filter is
+		// total rather than true-by-coincidence.
+		if !skillRunnableByTool(name, tool) {
+			continue
+		}
 		cmdPath := filepath.Join(commandsDir, name+".md")
 		wanted[name+".md"] = true
 		if st, err := os.Lstat(cmdPath); err == nil {

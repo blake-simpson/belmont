@@ -544,8 +544,13 @@ func fileContainsMarker(path, marker string) bool {
 //
 // `loop` drives Claude Code by delegating to the built-in `/loop`, and Codex
 // by starting Goal mode via `/goal`. No other supported CLI has an equivalent
-// long-running interactive primitive, so they must never see it — neither
-// through `.agents/skills/` discovery nor through a generated slash command.
+// long-running interactive primitive, so none of them ever gets a generated
+// slash command for it, and no install publishes it on their account.
+//
+// What this does NOT promise: invisibility on a mixed install. `.agents/skills/`
+// is one directory all eight CLIs read, so `--tools codex,opencode` leaves
+// `loop` where opencode's skill tool can load it. The gate keeps it out of the
+// discoverable palette; the skill body's refusal is the guard for the rest.
 var conditionalSkills = map[string]map[string]bool{
 	"loop": {"claude": true, "codex": true},
 }

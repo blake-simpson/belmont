@@ -441,6 +441,88 @@ func TestResolveSharedSurfaceSkills(t *testing.T) {
 	}
 }
 
+// The off-surface Claude command exists precisely when the skill is NOT on the
+// shared surface. Without this, a mutation that makes
+// `needsOffSurfaceClaudeCommand` unconditional leaves the whole suite green
+// while shipping the skill body twice — once as `.agents/skills/belmont/loop/`
+// and once as a real `.claude/commands/belmont/loop.md`.
+func TestCollectOffSurfaceClaudeCommandsSource_RespectsSharedSurface(t *testing.T) {
+	src := t.TempDir()
+	body := "---\nname: loop\ndescription: drive a feature\n---\nloop body\n"
+	mustWrite(t, filepath.Join(src, "loop/SKILL.md"), body)
+	mustWrite(t, filepath.Join(src, "implement/SKILL.md"), "---\nname: implement\n---\nbody\n")
+
+	// Published: Claude reads it from the shared surface, so no real file.
+	if got := collectOffSurfaceClaudeCommandsSource(src, map[string]bool{"loop": true}); len(got) != 0 {
+		t.Errorf("loop is on the shared surface — no off-surface command should be collected, got %v", got)
+	}
+	// Not published: Claude has nothing to symlink to, so it needs the content.
+	got := collectOffSurfaceClaudeCommandsSource(src, map[string]bool{})
+	if got["loop"] != body {
+		t.Errorf("off-surface loop command content = %q, want %q", got["loop"], body)
+	}
+	// Unconditional skills are never off-surface, whatever the decision says.
+	if _, ok := got["implement"]; ok {
+		t.Errorf("implement is unconditional and must never be collected as off-surface")
+	}
+}
+
+// End-to-end guard on the same invariant, through the real `runInstall`
+// ordering: the shared-surface decision and the Claude command shape are
+// derived from one resolution, so `.claude/commands/belmont/loop.md` is a
+// symlink exactly when `.agents/skills/belmont/loop/` exists. This is the
+// assertion that catches a regression at the *call sites* (threading the wrong
+// map into the syncs or the collectors), which no unit-level test can see.
+func TestRunInstall_ClaudeLoopCommandShapeMatchesSharedSurface(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("install regenerates skills via bash; not available")
+	}
+	src, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve source root: %v", err)
+	}
+	if !dirExists(filepath.Join(src, "skills", "belmont", "_src")) {
+		t.Skip("no skill sources at repo root")
+	}
+
+	cases := []struct {
+		tools         string
+		wantPublished bool
+	}{
+		{"claude", false},      // Claude alone: off-surface real command file.
+		{"claude,codex", true}, // Codex publishes: Claude gets the symlink.
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.tools, func(t *testing.T) {
+			project := t.TempDir()
+			if err := runInstall([]string{"--source", src, "--project", project, "--tools", tc.tools, "--no-prompt"}); err != nil {
+				t.Fatalf("install --tools %s: %v", tc.tools, err)
+			}
+
+			published := fileExists(filepath.Join(project, ".agents", "skills", "belmont", "loop", "SKILL.md"))
+			if published != tc.wantPublished {
+				t.Errorf("--tools %s: loop on shared surface = %v, want %v", tc.tools, published, tc.wantPublished)
+			}
+
+			cmdPath := filepath.Join(project, ".claude", "commands", "belmont", "loop.md")
+			st, err := os.Lstat(cmdPath)
+			if err != nil {
+				t.Fatalf("--tools %s: Claude must always get a loop command: %v", tc.tools, err)
+			}
+			isSymlink := st.Mode()&os.ModeSymlink != 0
+			if isSymlink != published {
+				shape := "real file"
+				if isSymlink {
+					shape = "symlink"
+				}
+				t.Errorf("--tools %s: loop.md is a %s but shared surface published = %v — the two decisions disagree",
+					tc.tools, shape, published)
+			}
+		})
+	}
+}
+
 func TestSyncSkillsFolderDir_HidesLoopWithoutCodex(t *testing.T) {
 	src := t.TempDir()
 	dst := t.TempDir()
