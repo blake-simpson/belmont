@@ -48,6 +48,15 @@ func runInstall(args []string) error {
 		return err
 	}
 
+	skillsTarget := filepath.Join(projectRoot, ".agents", "skills", "belmont")
+
+	// One decision, made before either sync path runs and reused by both plus
+	// the off-surface Claude command collection: which conditional skills
+	// belong on this project's shared surface. Reads the *current* install
+	// state, so a machine that can't detect Codex doesn't prune a `loop/` a
+	// Codex teammate committed. See resolveSharedSurfaceSkills.
+	sharedSurface := resolveSharedSurfaceSkills(skillsTarget, selectedTools)
+
 	// Off-surface Claude command content (name -> SKILL.md), written as real
 	// `.claude/commands/belmont/<skill>.md` files when a conditional skill is
 	// kept off the shared `.agents/skills/` surface for this install.
@@ -60,14 +69,13 @@ func runInstall(args []string) error {
 		}
 		fmt.Println("")
 
-		skillsTarget := filepath.Join(projectRoot, ".agents", "skills", "belmont")
 		fmt.Println("Installing skills to .agents/skills/belmont/...")
 		// Phase 2: skills are folder layout (<name>/SKILL.md) only. The
 		// agentskills.io standard, auto-discovered by every supported CLI.
-		if err := syncEmbeddedSkillsFolderDir(embeddedSkills, "skills/belmont", skillsTarget, selectedTools); err != nil {
+		if err := syncEmbeddedSkillsFolderDir(embeddedSkills, "skills/belmont", skillsTarget, sharedSurface); err != nil {
 			return err
 		}
-		offSurfaceClaudeCmds = collectOffSurfaceClaudeCommandsEmbedded(embeddedSkills, "skills/belmont", selectedTools)
+		offSurfaceClaudeCmds = collectOffSurfaceClaudeCommandsEmbedded(embeddedSkills, "skills/belmont", sharedSurface)
 		fmt.Println("")
 	} else {
 		sourceRoot, err := resolveSourceRoot(source)
@@ -99,12 +107,11 @@ func runInstall(args []string) error {
 		}
 		fmt.Println("")
 
-		skillsTarget := filepath.Join(projectRoot, ".agents", "skills", "belmont")
 		fmt.Println("Installing skills to .agents/skills/belmont/...")
-		if err := syncSkillsFolderDir(skillsSource, skillsTarget, selectedTools); err != nil {
+		if err := syncSkillsFolderDir(skillsSource, skillsTarget, sharedSurface); err != nil {
 			return err
 		}
-		offSurfaceClaudeCmds = collectOffSurfaceClaudeCommandsSource(skillsSource, selectedTools)
+		offSurfaceClaudeCmds = collectOffSurfaceClaudeCommandsSource(skillsSource, sharedSurface)
 		fmt.Println("")
 	}
 
@@ -217,7 +224,12 @@ func runInstall(args []string) error {
 // Stale skill folders (present in target but not in source) are removed.
 // Flat .md files at the target's top level are left alone — Phase 2's parallel
 // output keeps them around during transition; step 2.7 drops them.
-func syncSkillsFolderDir(sourceDir, targetDir string, selectedTools []string) error {
+//
+// `sharedSurface` is the per-conditional-skill decision from
+// resolveSharedSurfaceSkills — it already accounts for what is installed in
+// targetDir, so a skill published by an earlier install is refreshed here
+// rather than pruned by a machine whose tool detection can't see it.
+func syncSkillsFolderDir(sourceDir, targetDir string, sharedSurface map[string]bool) error {
 	if err := ensureDir(targetDir); err != nil {
 		return err
 	}
@@ -232,10 +244,11 @@ func syncSkillsFolderDir(sourceDir, targetDir string, selectedTools []string) er
 			continue
 		}
 		// Conditional skills are exposed on the shared `.agents/skills/`
-		// surface only when this install selected a tool that can run them.
+		// surface only when this project publishes them (a selected tool that
+		// can run them, or a copy an earlier install already put there).
 		// Skipping here (without recording in sourceFolders) also lets the
-		// stale-prune below remove any copy left by an older install.
-		if !skillVisibleOnSharedSurface(entry.Name(), selectedTools) {
+		// stale-prune below remove a copy this project no longer publishes.
+		if !skillVisibleOnSharedSurface(entry.Name(), sharedSurface) {
 			continue
 		}
 		skillSrc := filepath.Join(sourceDir, entry.Name(), "SKILL.md")
@@ -307,7 +320,7 @@ func syncSkillsFolderDir(sourceDir, targetDir string, selectedTools []string) er
 }
 
 // syncEmbeddedSkillsFolderDir is the embed.FS counterpart of syncSkillsFolderDir.
-func syncEmbeddedSkillsFolderDir(embedFS embed.FS, root string, targetDir string, selectedTools []string) error {
+func syncEmbeddedSkillsFolderDir(embedFS embed.FS, root string, targetDir string, sharedSurface map[string]bool) error {
 	if err := ensureDir(targetDir); err != nil {
 		return err
 	}
@@ -322,10 +335,10 @@ func syncEmbeddedSkillsFolderDir(embedFS embed.FS, root string, targetDir string
 			continue
 		}
 		// Conditional skills are not exposed on the shared `.agents/skills/`
-		// surface unless the selected tool set supports them. Skipping here
-		// also lets the stale-prune below remove any copy left by an older
-		// install.
-		if !skillVisibleOnSharedSurface(entry.Name(), selectedTools) {
+		// surface unless this project publishes them (see
+		// resolveSharedSurfaceSkills). Skipping here also lets the stale-prune
+		// below remove a copy this project no longer publishes.
+		if !skillVisibleOnSharedSurface(entry.Name(), sharedSurface) {
 			continue
 		}
 		skillPath := root + "/" + entry.Name() + "/SKILL.md"
@@ -510,6 +523,12 @@ func setupTool(projectRoot, tool string, offSurfaceClaudeCmds map[string]string)
 // `<commandsRelDir>/<skill>.md` via the write callback (symlink for Claude
 // Code, generated wrapper file for opencode).
 //
+// `tool` is the tool this palette belongs to. Conditional skills the tool
+// cannot run (`skillRunnableByTool`) are skipped even when they are present on
+// the shared surface because a co-selected tool put them there — otherwise a
+// `--tools codex,opencode` install would hand opencode a `/belmont/loop`
+// command it has no primitive to fulfil.
+//
 // `extra` holds commands for skills that are NOT present in `skillsTarget`
 // because they were conditionally kept off the shared `.agents/skills/`
 // surface for this install: each is written as a real file with the given
@@ -517,9 +536,9 @@ func setupTool(projectRoot, tool string, offSurfaceClaudeCmds map[string]string)
 // set so the prune pass below doesn't delete them.
 //
 // Stale .md entries inside the commands dir (left over from removed or
-// renamed skills) are pruned so the slash-command surface always matches
-// the current skill set.
-func syncSkillCommands(projectRoot, skillsTarget, commandsRelDir string, write func(cmdPath, skillFile, skill string) error, extra map[string]string) error {
+// renamed skills, or from a skill this tool may no longer run) are pruned so
+// the slash-command surface always matches the current skill set.
+func syncSkillCommands(projectRoot, skillsTarget, commandsRelDir, tool string, write func(cmdPath, skillFile, skill string) error, extra map[string]string) error {
 	commandsDir := filepath.Join(projectRoot, commandsRelDir)
 	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
 		return fmt.Errorf("create commands dir: %w", err)
@@ -539,6 +558,11 @@ func syncSkillCommands(projectRoot, skillsTarget, commandsRelDir string, write f
 		// Skip generation scaffolding dirs (shouldn't be at this level after
 		// install but defensive).
 		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
+			continue
+		}
+		// A conditional skill this tool cannot run never gets a command here,
+		// even when it is on the shared surface for a co-selected tool.
+		if !skillRunnableByTool(name, tool) {
 			continue
 		}
 		skillFile := filepath.Join(skillsTarget, name, "SKILL.md")

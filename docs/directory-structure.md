@@ -116,7 +116,9 @@ your-project/
 └── ...
 ```
 
-The `loop` skill is conditional. Claude Code always gets `/belmont:loop`: if `loop` is kept off `.agents/skills/belmont/`, Belmont writes a real `.claude/commands/belmont/loop.md` file copied from the generated SKILL.md; if Codex is also selected and `loop` is on the shared surface, Claude gets the normal symlink. Codex installs `loop` into `.agents/skills/belmont/loop/` so `$belmont:loop` can start `/goal`. Other shared-surface CLIs do not get `loop` by default.
+The `loop` skill is conditional. Claude Code always gets `/belmont:loop`: if `loop` is kept off `.agents/skills/belmont/`, Belmont writes a real `.claude/commands/belmont/loop.md` file copied from the generated SKILL.md; if Codex is also selected and `loop` is on the shared surface, Claude gets the normal symlink. Codex installs `loop` into `.agents/skills/belmont/loop/` so `$belmont:loop` can start `/goal`. Other shared-surface CLIs do not get `loop` by default — and never get a generated slash command for it (no `/belmont/loop` in opencode) even when Codex is co-selected and the folder is present.
+
+Once `.agents/skills/belmont/loop/` exists, it stays: re-installing (or `belmont update`) from a machine where Codex isn't detected leaves it in place rather than deleting a folder your Codex teammates committed. To drop it for good, delete the folder — nothing re-adds it unless Codex is selected again.
 
 Codex, Cursor, Windsurf, Gemini, GitHub Copilot, Pi, and opencode all auto-discover `.agents/skills/belmont/<skill>/SKILL.md` natively (see [supported-tools.md](supported-tools.md)). opencode additionally gets the `.opencode/command/belmont/` wrapper commands above, because its TUI `/` autocomplete only lists commands, not skills. Codex additionally gets per-skill `agents/openai.yaml` UI metadata inside the canonical skill folders (`interface.display_name: "belmont:<skill>"`), so typing `$belmont` in its composer lists every skill — Codex's `/` menu only shows built-ins and can't be extended.
 

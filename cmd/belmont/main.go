@@ -536,50 +536,113 @@ func fileContainsMarker(path, marker string) bool {
 	return strings.Contains(string(data), marker)
 }
 
-// conditionalSharedSurfaceSkills lists skills that should land on the shared
-// `.agents/skills/belmont/` discovery surface only when at least one selected
-// tool can run their interactive mechanics. Unlisted skills are always shared.
-// See knowledge/cross-cutting/skill-format.md.
+// conditionalSkills maps a skill name to the tools that can actually run its
+// interactive mechanics. A skill absent from this map is unconditional: every
+// install gets it on the shared `.agents/skills/belmont/` discovery surface
+// and in every per-tool command palette. See
+// knowledge/cross-cutting/skill-format.md.
 //
-// `loop` can drive Claude Code by delegating to `/loop`, and Codex by asking
-// Codex to start `/goal`. Other shared-surface CLIs do not have an equivalent
-// long-running interactive primitive, so Belmont keeps it hidden unless Codex
-// was selected for this install. Claude Code still receives it as a real
-// `.claude/commands/belmont/loop.md` file whenever it is absent from the
-// shared surface.
-var conditionalSharedSurfaceSkills = map[string]map[string]bool{
-	"loop": {"codex": true},
+// `loop` drives Claude Code by delegating to the built-in `/loop`, and Codex
+// by starting Goal mode via `/goal`. No other supported CLI has an equivalent
+// long-running interactive primitive, so they must never see it — neither
+// through `.agents/skills/` discovery nor through a generated slash command.
+var conditionalSkills = map[string]map[string]bool{
+	"loop": {"claude": true, "codex": true},
 }
 
+// offSurfaceClaudeCommandSkills names conditional skills Claude Code can still
+// run while they are absent from `.agents/skills/`: `linkClaudeCommands`
+// writes them as real `.claude/commands/belmont/<skill>.md` files. Because
+// Claude has that private delivery path, selecting Claude alone never
+// publishes the skill to the shared surface — see toolPublishesSkill.
 var offSurfaceClaudeCommandSkills = map[string]bool{
 	"loop": true,
 }
 
-func skillVisibleOnSharedSurface(name string, selectedTools []string) bool {
-	allowedTools, conditional := conditionalSharedSurfaceSkills[name]
+func skillIsConditional(name string) bool {
+	_, conditional := conditionalSkills[name]
+	return conditional
+}
+
+// skillRunnableByTool reports whether `tool` can run `name` interactively.
+// Used to keep a conditional skill out of a tool's own command palette even
+// when a co-selected tool put it on the shared surface.
+func skillRunnableByTool(name, tool string) bool {
+	runners, conditional := conditionalSkills[name]
 	if !conditional {
 		return true
 	}
-	for _, tool := range selectedTools {
-		if allowedTools[tool] {
-			return true
-		}
-	}
-	return false
+	return runners[tool]
 }
 
-func needsOffSurfaceClaudeCommand(name string, selectedTools []string) bool {
-	return offSurfaceClaudeCommandSkills[name] && !skillVisibleOnSharedSurface(name, selectedTools)
+// toolPublishesSkill reports whether selecting `tool` should copy `name` onto
+// the shared `.agents/skills/belmont/` surface. Claude Code is deliberately
+// excluded for off-surface skills: it receives them as real command files, so
+// a Claude-only install must not expose them to the seven other CLIs that read
+// the same directory.
+func toolPublishesSkill(name, tool string) bool {
+	if !skillRunnableByTool(name, tool) {
+		return false
+	}
+	return !(tool == "claude" && offSurfaceClaudeCommandSkills[name])
+}
+
+// resolveSharedSurfaceSkills decides, for every conditional skill, whether it
+// belongs on this project's shared `.agents/skills/belmont/` surface. The
+// result is threaded through both skill-sync paths and the off-surface Claude
+// command collection so every consumer makes the same call.
+//
+// A conditional skill is published when a selected tool publishes it — or when
+// it is already installed in `skillsTarget`. That stickiness is load-bearing:
+// `.agents/skills/` is committed to git, but the tool selection is a property
+// of the *machine* running the install. `belmont update` re-runs
+// `install --no-prompt --tools all`, which resolves to *detected* tools, so
+// without it a teammate (or CI) with no `codex` on PATH would prune `loop/`,
+// `commitBelmontUpdate` would commit the removal, and the next update from a
+// Codex machine would add it back — the folder would flap in git forever.
+//
+// Dropping a published skill for good is therefore a deliberate
+// `rm -rf .agents/skills/belmont/<skill>`: nothing re-adds it unless a tool
+// that publishes it is selected again.
+func resolveSharedSurfaceSkills(skillsTarget string, selectedTools []string) map[string]bool {
+	published := make(map[string]bool, len(conditionalSkills))
+	for name := range conditionalSkills {
+		if fileExists(filepath.Join(skillsTarget, name, "SKILL.md")) {
+			published[name] = true
+			continue
+		}
+		for _, tool := range selectedTools {
+			if toolPublishesSkill(name, tool) {
+				published[name] = true
+				break
+			}
+		}
+	}
+	return published
+}
+
+// skillVisibleOnSharedSurface answers the sync-time question "copy this skill
+// into `.agents/skills/belmont/`?" against a decision from
+// resolveSharedSurfaceSkills. Unconditional skills are always visible.
+func skillVisibleOnSharedSurface(name string, sharedSurface map[string]bool) bool {
+	if !skillIsConditional(name) {
+		return true
+	}
+	return sharedSurface[name]
+}
+
+func needsOffSurfaceClaudeCommand(name string, sharedSurface map[string]bool) bool {
+	return offSurfaceClaudeCommandSkills[name] && !skillVisibleOnSharedSurface(name, sharedSurface)
 }
 
 // collectOffSurfaceClaudeCommandsSource reads the generated SKILL.md content
 // for each skill that should be a real Claude command file for this install
 // because it is absent from the shared `.agents/skills/` surface. A missing
 // generated SKILL.md is skipped silently (generation runs first).
-func collectOffSurfaceClaudeCommandsSource(skillsSource string, selectedTools []string) map[string]string {
+func collectOffSurfaceClaudeCommandsSource(skillsSource string, sharedSurface map[string]bool) map[string]string {
 	out := map[string]string{}
 	for name := range offSurfaceClaudeCommandSkills {
-		if !needsOffSurfaceClaudeCommand(name, selectedTools) {
+		if !needsOffSurfaceClaudeCommand(name, sharedSurface) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(skillsSource, name, "SKILL.md"))
@@ -594,10 +657,10 @@ func collectOffSurfaceClaudeCommandsSource(skillsSource string, selectedTools []
 // collectOffSurfaceClaudeCommandsEmbedded is the embed.FS counterpart of
 // collectOffSurfaceClaudeCommandsSource. `root` is the embedded skills root
 // (`skills/belmont`).
-func collectOffSurfaceClaudeCommandsEmbedded(embedFS embed.FS, root string, selectedTools []string) map[string]string {
+func collectOffSurfaceClaudeCommandsEmbedded(embedFS embed.FS, root string, sharedSurface map[string]bool) map[string]string {
 	out := map[string]string{}
 	for name := range offSurfaceClaudeCommandSkills {
-		if !needsOffSurfaceClaudeCommand(name, selectedTools) {
+		if !needsOffSurfaceClaudeCommand(name, sharedSurface) {
 			continue
 		}
 		data, err := fs.ReadFile(embedFS, root+"/"+name+"/SKILL.md")
@@ -619,7 +682,7 @@ func collectOffSurfaceClaudeCommandsEmbedded(embedFS embed.FS, root string, sele
 // written as real command files (not symlinks) because the skills are absent
 // from `.agents/skills/belmont/` for this install.
 func linkClaudeCommands(projectRoot, skillsTarget string, offSurfaceClaudeCmds map[string]string) error {
-	return syncSkillCommands(projectRoot, skillsTarget, filepath.Join(".claude", "commands", "belmont"),
+	return syncSkillCommands(projectRoot, skillsTarget, filepath.Join(".claude", "commands", "belmont"), "claude",
 		func(cmdPath, skillFile, skill string) error {
 			return ensureSymlink(cmdPath, skillFile, false)
 		}, offSurfaceClaudeCmds)
@@ -645,9 +708,14 @@ func linkClaudeCommands(projectRoot, skillsTarget string, offSurfaceClaudeCmds m
 // which also keeps the skill's relative `references/` paths resolving from
 // the real skill directory.
 func linkOpencodeCommands(projectRoot, skillsTarget string) error {
-	// opencode gets no off-surface skills; conditional skills that are absent
-	// from `.agents/skills/` should stay absent from opencode's `/` palette.
-	return syncSkillCommands(projectRoot, skillsTarget, filepath.Join(".opencode", "command", "belmont"),
+	// opencode gets no off-surface skills, and conditional skills it cannot run
+	// are filtered out by syncSkillCommands' tool argument. That filter matters
+	// on a co-selected install (e.g. `--tools codex,opencode`): `loop` IS on the
+	// shared surface then, so an unfiltered walk would generate a first-class
+	// `/belmont/loop` command for a tool with no `/loop` or `/goal` to delegate
+	// to — a dead end in the `/` palette. Any such command left by an earlier
+	// install is pruned in the same pass.
+	return syncSkillCommands(projectRoot, skillsTarget, filepath.Join(".opencode", "command", "belmont"), "opencode",
 		writeOpencodeCommandFile, nil)
 }
 
