@@ -48,6 +48,12 @@ func TestNextTaskSkipsDependencyBlockedMilestone(t *testing.T) {
 	if nt.ID != "P2-1" {
 		t.Errorf("next task = %s, want P2-1 (first workable task in an eligible milestone)", nt.ID)
 	}
+	// The contract on the explainer: it is set only when NO task is offerable.
+	// Without this, dropping its nextTask guard emits next_task_blocked
+	// alongside next_task in JSON, contradicting the types.go comment.
+	if b := nextTaskBlockedByDeps(flattenTasks(ms, 0), ms); b != nil {
+		t.Errorf("nextTaskBlockedByDeps = %+v, want nil while P2-1 is offerable", b)
+	}
 }
 
 // A dependency is satisfied by done-not-verified — the same rule computeWaves
@@ -256,5 +262,90 @@ func TestListingTaskLineNamesDepBlock(t *testing.T) {
 	out := renderFeatureListing(report, false, false)
 	if !strings.Contains(out, "Next: waiting on dependencies — M2 depends on M1 (status: blocked)") {
 		t.Errorf("listing does not name the task-level dependency block:\n%s", out)
+	}
+}
+
+// An in-progress task counts as workable for the explainer too: a [>] task
+// dep-suppressed in the offerable-milestone shape must still set
+// NextTaskBlocked, or the task line regresses to a bare "None" for exactly
+// the tasks someone already started.
+func TestNextTaskBlockedByDepsCountsInProgress(t *testing.T) {
+	ms := parseMilestones(`### M1: Gate
+- [v] P1-0: shipped
+- [!] P1-1: approve
+
+### M2: Downstream (depends: M1)
+- [>] P2-1: started already
+`)
+	b := nextTaskBlockedByDeps(flattenTasks(ms, 0), ms)
+	if b == nil || b.Milestone.ID != "M2" {
+		t.Fatalf("nextTaskBlockedByDeps = %+v, want M2 — a [>] task is workable", b)
+	}
+}
+
+// When the two blocked explainers disagree — the first undone milestone and
+// the first workable task's milestone are different — the listing prefers the
+// milestone-level one, matching the detail view's precedence.
+const cycleTwoExplainersProgress = `# Progress
+
+## Milestones
+
+### M1: Gate (depends: M2)
+
+- [v] P1-0: shipped
+- [!] P1-1: approve
+
+### M2: Downstream (depends: M1)
+
+- [ ] P2-1: pending work
+`
+
+func TestListingPrefersMilestoneLevelBlockOverTaskLevel(t *testing.T) {
+	root := writeReverifyFixture(t, cycleTwoExplainersProgress)
+	report, err := buildStatus(root, 55, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := report.Features[0]
+	if f.Status != "In Progress" {
+		t.Fatalf("fixture status = %q, want In Progress", f.Status)
+	}
+	if f.NextBlocked == nil || f.NextBlocked.Milestone.ID != "M1" {
+		t.Fatalf("NextBlocked = %+v, want M1 — fixture no longer produces two explainers", f.NextBlocked)
+	}
+	if f.NextTaskBlocked == nil || f.NextTaskBlocked.Milestone.ID != "M2" {
+		t.Fatalf("NextTaskBlocked = %+v, want M2", f.NextTaskBlocked)
+	}
+	out := renderFeatureListing(report, false, false)
+	if !strings.Contains(out, "Next: waiting on dependencies — M1 depends on M2 (status: pending)") {
+		t.Errorf("listing does not lead with the milestone-level block:\n%s", out)
+	}
+}
+
+// The listing's Next line is gated on In Progress: a Not Started feature —
+// even a dependency-blocked one — gets no Next line at all.
+func TestListingNotStartedFeatureGetsNoNextLine(t *testing.T) {
+	root := writeReverifyFixture(t, `# Progress
+
+## Milestones
+
+### M1: First (depends: M2)
+
+- [ ] P1-1: a
+
+### M2: Second (depends: M1)
+
+- [ ] P2-1: b
+`)
+	report, err := buildStatus(root, 55, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := report.Features[0].Status; got != "Not Started" {
+		t.Fatalf("fixture status = %q, want Not Started", got)
+	}
+	out := renderFeatureListing(report, false, false)
+	if strings.Contains(out, "Next:") {
+		t.Errorf("listing prints a Next line for a Not Started feature:\n%s", out)
 	}
 }
