@@ -56,7 +56,7 @@ func TestWithdrawnIsResolvedNotOutstanding(t *testing.T) {
 	if got := computeOverallStatus(tasks); got != "Complete" {
 		t.Errorf("status = %q, want Complete", got)
 	}
-	if nt := nextTask(tasks); nt != nil {
+	if nt := nextTask(tasks, ms); nt != nil {
 		t.Errorf("withdrawn work was scheduled: %+v", nt)
 	}
 

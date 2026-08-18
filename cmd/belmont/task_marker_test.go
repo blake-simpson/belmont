@@ -73,7 +73,7 @@ func TestCapitalXIsNotTodo(t *testing.T) {
 	if !milestoneAllDone(ms[0]) {
 		t.Fatalf("milestone with [x] and [X] should read as all done, got %+v", ms[0].Tasks)
 	}
-	if nt := nextTask(flattenTasks(ms, 0)); nt != nil {
+	if nt := nextTask(flattenTasks(ms, 0), ms); nt != nil {
 		t.Errorf("next task = %q, want none — every task is done", nt.ID)
 	}
 }
@@ -82,7 +82,7 @@ func TestCapitalXIsNotTodo(t *testing.T) {
 // an agent as the next thing to build.
 func TestUnknownMarkerIsNeverScheduled(t *testing.T) {
 	ms := parseMilestones("# P\n\n## Milestones\n\n### M1: M\n- [x] P1-M1-1: done\n- [?] P1-M1-2: withdrawn\n")
-	if nt := nextTask(flattenTasks(ms, 0)); nt != nil {
+	if nt := nextTask(flattenTasks(ms, 0), ms); nt != nil {
 		t.Errorf("next task = %q (status %v), want none — the only incomplete entry is unparseable",
 			nt.ID, nt.Status)
 	}

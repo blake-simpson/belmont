@@ -178,7 +178,8 @@ func listFeaturesWithOverrides(featuresDir string, maxName int, worktreeOverride
 		}
 
 		featureNextMilestone := nextMilestone(milestones)
-		featureNextTask := nextTask(tasks)
+		featureNextTask := nextTask(tasks, milestones)
+		featureNextBlocked := nextBlockedMilestone(milestones)
 
 		status := computeOverallStatus(tasks)
 
@@ -205,6 +206,7 @@ func listFeaturesWithOverrides(featuresDir string, maxName int, worktreeOverride
 			Milestones:      milestones,
 			NextMilestone:   featureNextMilestone,
 			NextTask:        featureNextTask,
+			NextBlocked:     featureNextBlocked,
 			Status:          status,
 			LiveGaps:        liveGaps,
 		})
@@ -534,13 +536,12 @@ func computeWaves(milestones []milestone) ([]wave, error) {
 		return nil, nil
 	}
 
-	// Build ID -> milestone map
-	byID := make(map[string]milestone)
-	for _, m := range milestones {
-		byID[m.ID] = m
-	}
+	byID := milestonesByID(milestones)
 
-	// Compute in-degree for each undone milestone
+	// Compute in-degree for each undone milestone. What counts as a live
+	// dependency edge is depSatisfied's business — the next-work selectors
+	// consult the same predicate, so the scheduler and the status views
+	// cannot disagree about what is blocked (#59).
 	inDegree := make(map[string]int)
 	for _, m := range milestones {
 		if milestoneAllDone(m) {
@@ -548,7 +549,7 @@ func computeWaves(milestones []milestone) ([]wave, error) {
 		}
 		count := 0
 		for _, dep := range m.Deps {
-			if dm, ok := byID[dep]; ok && !milestoneAllDone(dm) {
+			if !depSatisfied(dep, byID) {
 				count++
 			}
 		}

@@ -43,7 +43,7 @@ func TestIndentedHeadingDoesNotEndMilestone(t *testing.T) {
 	if !milestoneHasBlockers(ms[0]) {
 		t.Error("the [!] blocker is invisible")
 	}
-	if nextTask(tasks) == nil {
+	if nextTask(tasks, ms) == nil {
 		t.Error("the [ ] task is never offered as next work")
 	}
 }

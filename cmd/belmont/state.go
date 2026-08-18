@@ -695,12 +695,118 @@ func lastCompletedTask(tasks []task) *task {
 	return last
 }
 
-func nextMilestone(milestones []milestone) *milestone {
+// milestonesByID indexes milestones for dependency lookups.
+func milestonesByID(milestones []milestone) map[string]milestone {
+	byID := make(map[string]milestone, len(milestones))
 	for _, m := range milestones {
-		if !milestoneAllDone(m) {
-			mm := m
-			return &mm
+		byID[m.ID] = m
+	}
+	return byID
+}
+
+// depSatisfied is THE definition of a satisfied `(depends: …)` reference,
+// shared by computeWaves' in-degree count and the next-work selectors below.
+// A dependency is satisfied when the referenced milestone is all-done —
+// done-not-verified already unblocks its dependents in wave scheduling — or
+// when it does not exist, because a dangling reference cannot block and
+// computeWaves has always ignored one. Two answers to this question is the
+// #27/#31 shape: the scheduler and the status views disagreeing about what
+// is blocked. See issue #59.
+func depSatisfied(dep string, byID map[string]milestone) bool {
+	dm, ok := byID[dep]
+	return !ok || milestoneAllDone(dm)
+}
+
+func milestoneDepsMet(m milestone, byID map[string]milestone) bool {
+	for _, dep := range m.Deps {
+		if !depSatisfied(dep, byID) {
+			return false
 		}
+	}
+	return true
+}
+
+// milestoneStatusWord names a milestone's computed state for one-line
+// displays: auto's dry-run listing and the dependency annotations below.
+// Checked in the same order as milestoneStatusIcon: withdrawn before done,
+// because an all-withdrawn milestone satisfies milestoneAllDone and calling
+// it done claims work that never happened.
+func milestoneStatusWord(m milestone) string {
+	switch {
+	case milestoneAllWithdrawn(m):
+		return "withdrawn"
+	case milestoneAllVerified(m):
+		return "verified"
+	case milestoneAllDone(m):
+		return "done"
+	case !milestoneNotStarted(m):
+		return "in progress"
+	default:
+		return "pending"
+	}
+}
+
+// nextMilestone returns the first milestone, in document order, that is not
+// all-done AND whose every `(depends: …)` is satisfied. Dependencies were
+// simply never part of this condition (#59): the annotation was parsed,
+// rendered, and then not consulted by anything that recommends work — so on
+// a feature whose first pending milestone declared unmet deps, both status
+// views named the one milestone that must run last.
+//
+// Returns nil when nothing is offerable. That is NOT the same as "nothing is
+// left": when undone milestones remain but every one is dependency-blocked,
+// nextBlockedMilestone reports which and why — and the render layer must
+// print that, never "None", because loop-recipe.md's stop condition treats
+// "Next Milestone: None" as the feature being finished.
+func nextMilestone(milestones []milestone) *milestone {
+	byID := milestonesByID(milestones)
+	for _, m := range milestones {
+		if milestoneAllDone(m) {
+			continue
+		}
+		if !milestoneDepsMet(m, byID) {
+			continue
+		}
+		mm := m
+		return &mm
+	}
+	return nil
+}
+
+// blockedNext explains a nil nextMilestone that does not mean "done": the
+// first undone milestone in document order, with each unmet dependency
+// rendered "M21 (status: pending)" — the same shape scanReadiness uses for
+// feature-level dependencies.
+type blockedNext struct {
+	Milestone milestone `json:"milestone"`
+	UnmetDeps []string  `json:"unmet_deps"`
+}
+
+// nextBlockedMilestone returns non-nil exactly when undone work remains and
+// none of it is offerable — every undone milestone has an unmet dependency.
+// In practice that is a dependency cycle or a forward reference, both of
+// which computeWaves refuses at auto startup; the status views still have to
+// say something truthful about the file.
+func nextBlockedMilestone(milestones []milestone) *blockedNext {
+	if nextMilestone(milestones) != nil {
+		return nil
+	}
+	byID := milestonesByID(milestones)
+	for _, m := range milestones {
+		if milestoneAllDone(m) {
+			continue
+		}
+		var unmet []string
+		for _, dep := range m.Deps {
+			if !depSatisfied(dep, byID) {
+				status := "missing"
+				if dm, ok := byID[dep]; ok {
+					status = milestoneStatusWord(dm)
+				}
+				unmet = append(unmet, fmt.Sprintf("%s (status: %s)", dep, status))
+			}
+		}
+		return &blockedNext{Milestone: m, UnmetDeps: unmet}
 	}
 	return nil
 }
@@ -715,9 +821,17 @@ func nextMilestone(milestones []milestone) *milestone {
 // Do not rewrite this as a negative ("anything not done or verified"). That
 // reads as equivalent and silently re-admits taskUnknown, plus any state added
 // later. TestUnknownMarkerIsNeverScheduled fails if you do.
-func nextTask(tasks []task) *task {
+func nextTask(tasks []task, milestones []milestone) *task {
+	byID := milestonesByID(milestones)
 	for _, t := range tasks {
 		if t.Status == taskInProgress || t.Status == taskTodo {
+			// Same eligibility rule as nextMilestone: never offer work from a
+			// milestone whose dependencies are unmet. A task whose milestone
+			// is not in the set stays offerable — hiding work over a lookup
+			// failure would be the unsafe direction.
+			if m, ok := byID[t.MilestoneID]; ok && !milestoneDepsMet(m, byID) {
+				continue
+			}
 			tt := t
 			return &tt
 		}

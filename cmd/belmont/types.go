@@ -100,7 +100,11 @@ type featureSummary struct {
 	Milestones      []milestone `json:"milestones"`
 	NextMilestone   *milestone  `json:"next_milestone,omitempty"`
 	NextTask        *task       `json:"next_task,omitempty"`
-	Status          string      `json:"status"`
+	// NextBlocked is set exactly when NextMilestone is nil because every
+	// undone milestone has an unmet `(depends: …)` — without it a JSON
+	// consumer cannot tell dependency-blocked from finished. See issue #59.
+	NextBlocked *blockedNext `json:"next_blocked,omitempty"`
+	Status      string       `json:"status"`
 	// LiveGaps names milestones whose live worktree state could not be read, so
 	// the counts above include master's stale copy of them. See issue #48.
 	LiveGaps []liveOverlayGap `json:"live_gaps,omitempty"`
@@ -133,6 +137,7 @@ type statusReport struct {
 	Milestones       []milestone
 	NextMilestone    *milestone
 	NextTask         *task
+	NextBlocked      *blockedNext `json:",omitempty"`
 	LastCompleted    *task
 	RecentDecisions  []string
 	Features         []featureSummary
