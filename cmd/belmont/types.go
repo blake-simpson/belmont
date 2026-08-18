@@ -104,7 +104,11 @@ type featureSummary struct {
 	// undone milestone has an unmet `(depends: …)` — without it a JSON
 	// consumer cannot tell dependency-blocked from finished. See issue #59.
 	NextBlocked *blockedNext `json:"next_blocked,omitempty"`
-	Status      string       `json:"status"`
+	// NextTaskBlocked is the task-line counterpart: set when no task is
+	// offerable but a workable one is hidden behind an unmet dependency
+	// while the next milestone itself is offerable.
+	NextTaskBlocked *blockedNext `json:"next_task_blocked,omitempty"`
+	Status          string       `json:"status"`
 	// LiveGaps names milestones whose live worktree state could not be read, so
 	// the counts above include master's stale copy of them. See issue #48.
 	LiveGaps []liveOverlayGap `json:"live_gaps,omitempty"`
@@ -138,6 +142,7 @@ type statusReport struct {
 	NextMilestone    *milestone
 	NextTask         *task
 	NextBlocked      *blockedNext `json:",omitempty"`
+	NextTaskBlocked  *blockedNext `json:",omitempty"`
 	LastCompleted    *task
 	RecentDecisions  []string
 	Features         []featureSummary

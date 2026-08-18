@@ -53,7 +53,7 @@ When dispatching sub-agents (Step 3 below), apply the tier overrides per `dispat
 1. Read `{base}/PROGRESS.md` and find the Milestones section
 2. A milestone is **complete** if every task that is still live is marked `[v]` (verified). `[-]` withdrawn tasks are resolved — skip them, they neither block completion nor count towards it
 3. A milestone is **pending** if any task is `[ ]`, `[>]`, `[x]`, or `[!]`
-4. A pending milestone is **eligible** only if its heading's `(depends: …)` annotation, when present, is met — a dependency is met when every live task in the named milestone reads `[x]`, `[v]` or `[-]`, or when the name matches no milestone (the CLI ignores a dangling reference, and so must you). A milestone with an unmet dependency runs *after* what it depends on, never first, however early it sits in the file
+4. A pending milestone is **eligible** only if its heading's `(depends: …)` annotation, when present, is met — a dependency is met when the named milestone has at least one task and every one of them reads `[x]`, `[v]` or `[-]` (an empty milestone never satisfies a dependency), or when the name matches no milestone (the CLI ignores a dangling reference, and so must you). A milestone with an unmet dependency runs *after* what it depends on, never first, however early it sits in the file
 5. Select the **first eligible pending milestone**
 6. If milestones are pending but none is eligible, do not build anything: report which milestone waits on which dependency (`belmont status` prints the same thing as "(waiting on dependencies)") and stop
 7. If all milestones are complete, report "All milestones complete!" and stop

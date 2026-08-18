@@ -136,6 +136,9 @@ func TestStatusNamesBlockingDependencyInsteadOfNone(t *testing.T) {
 	if strings.Contains(out, "Next Individual Task:\n  - None") {
 		t.Errorf("task line says None while dep-blocked work remains:\n%s", out)
 	}
+	if !strings.Contains(out, "(waiting on dependencies — see Next Milestone above)") {
+		t.Errorf("task line does not carry the see-above pointer:\n%s", out)
+	}
 }
 
 func TestListingNamesBlockingDependency(t *testing.T) {
@@ -157,5 +160,101 @@ func TestListingNamesBlockingDependency(t *testing.T) {
 	out := renderFeatureListing(report, false, false)
 	if !strings.Contains(out, "Next: waiting on dependencies — M1 depends on M2 (status: pending)") {
 		t.Errorf("listing does not name the blocking dependency:\n%s", out)
+	}
+}
+
+// The fail-safe direction of nextTask's milestone lookup: a task whose
+// MilestoneID matches no milestone stays offerable. Hiding work over a lookup
+// failure is the unsafe direction, and nothing else pins it — both production
+// callers happen to derive tasks and milestones from the same slice.
+func TestNextTaskUnknownMilestoneStaysOfferable(t *testing.T) {
+	ms := parseMilestones("### M1: Done\n- [x] P1-1: a\n")
+	tasks := []task{{ID: "X-1", Name: "orphan-built", Status: taskTodo, MilestoneID: "M99"}}
+	nt := nextTask(tasks, ms)
+	if nt == nil || nt.ID != "X-1" {
+		t.Fatalf("next task = %v, want X-1 — a failed milestone lookup must not hide work", nt)
+	}
+}
+
+// The scheduler half of "one predicate": computeWaves must order an
+// unmet-dep milestone after its dependencies in the PLAIN suite, not only
+// behind the eval build tag — inverting the in-degree count survived
+// `go test ./cmd/belmont` before this test existed.
+func TestComputeWavesOrdersUnmetDepAfterItsDependencies(t *testing.T) {
+	ms := parseMilestones(depBlockedFirstProgress)
+	waves, err := computeWaves(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(waves) != 2 {
+		t.Fatalf("waves = %d, want 2", len(waves))
+	}
+	first := make(map[string]bool)
+	for _, m := range waves[0].Milestones {
+		first[m.ID] = true
+	}
+	if !first["M21"] || !first["M22"] || first["M16"] {
+		t.Errorf("wave 0 = %v, want M21+M22 without M16", waves[0].Milestones)
+	}
+	if len(waves[1].Milestones) != 1 || waves[1].Milestones[0].ID != "M16" {
+		t.Errorf("wave 1 = %v, want [M16]", waves[1].Milestones)
+	}
+}
+
+// The next MILESTONE is offerable (its only live work is a [!]) while every
+// workable TASK is dependency-suppressed. The task line must not read a bare
+// "None" — that is indistinguishable from nothing-left — and the unmet dep's
+// status word must say "blocked", not "in progress", for a [!]-gated
+// milestone: blocked-vs-in-progress is a classification agents act on.
+const offerableMilestoneBlockedTaskProgress = `# Progress
+
+## Milestones
+
+### M1: Human gate
+
+- [v] P1-0: Draft shipped
+- [!] P1-1: Approve the rollout
+  Needs sign-off from the platform owner.
+
+### M2: Downstream (depends: M1)
+
+- [ ] P2-1: Build on the approval
+`
+
+func TestTaskLineNamesDepBlockWhenMilestoneOfferable(t *testing.T) {
+	report, _ := buildFeature(t, offerableMilestoneBlockedTaskProgress)
+
+	if report.NextMilestone == nil || report.NextMilestone.ID != "M1" {
+		t.Fatalf("NextMilestone = %v, want M1 — fixture no longer reproduces the shape", report.NextMilestone)
+	}
+	if report.NextBlocked != nil {
+		t.Fatalf("NextBlocked = %+v, want nil while M1 is offerable", report.NextBlocked)
+	}
+	if report.NextTaskBlocked == nil || report.NextTaskBlocked.Milestone.ID != "M2" {
+		t.Fatalf("NextTaskBlocked = %+v, want M2", report.NextTaskBlocked)
+	}
+
+	out := renderStatus(report, false, false)
+	if strings.Contains(out, "Next Individual Task:\n  - None") {
+		t.Errorf("task line says bare None while P2-1 waits on M1:\n%s", out)
+	}
+	if !strings.Contains(out, "(waiting on dependencies) next candidate sits in M2 — depends on M1 (status: blocked)") {
+		t.Errorf("task line does not name the dependency (or words a [!]-gated milestone as something other than blocked):\n%s", out)
+	}
+}
+
+func TestListingTaskLineNamesDepBlock(t *testing.T) {
+	root := writeReverifyFixture(t, offerableMilestoneBlockedTaskProgress)
+	report, err := buildStatus(root, 55, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := report.Features[0]
+	if f.Status != "In Progress" {
+		t.Fatalf("fixture status = %q, want In Progress", f.Status)
+	}
+	out := renderFeatureListing(report, false, false)
+	if !strings.Contains(out, "Next: waiting on dependencies — M2 depends on M1 (status: blocked)") {
+		t.Errorf("listing does not name the task-level dependency block:\n%s", out)
 	}
 }

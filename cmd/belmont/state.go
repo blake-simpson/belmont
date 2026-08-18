@@ -728,9 +728,12 @@ func milestoneDepsMet(m milestone, byID map[string]milestone) bool {
 
 // milestoneStatusWord names a milestone's computed state for one-line
 // displays: auto's dry-run listing and the dependency annotations below.
-// Checked in the same order as milestoneStatusIcon: withdrawn before done,
-// because an all-withdrawn milestone satisfies milestoneAllDone and calling
-// it done claims work that never happened.
+// Checked in the same order as milestoneStatusIcon, all five branches:
+// withdrawn before done, because an all-withdrawn milestone satisfies
+// milestoneAllDone and calling it done claims work that never happened; and
+// blockers before in-progress, because blocked-vs-in-progress is a
+// classification agents act on — a dependency annotation calling a
+// [!]-gated milestone "in progress" invites working at it.
 func milestoneStatusWord(m milestone) string {
 	switch {
 	case milestoneAllWithdrawn(m):
@@ -739,6 +742,8 @@ func milestoneStatusWord(m milestone) string {
 		return "verified"
 	case milestoneAllDone(m):
 		return "done"
+	case milestoneHasBlockers(m):
+		return "blocked"
 	case !milestoneNotStarted(m):
 		return "in progress"
 	default:
@@ -796,17 +801,48 @@ func nextBlockedMilestone(milestones []milestone) *blockedNext {
 		if milestoneAllDone(m) {
 			continue
 		}
-		var unmet []string
-		for _, dep := range m.Deps {
-			if !depSatisfied(dep, byID) {
-				status := "missing"
-				if dm, ok := byID[dep]; ok {
-					status = milestoneStatusWord(dm)
-				}
-				unmet = append(unmet, fmt.Sprintf("%s (status: %s)", dep, status))
+		return blockedNextFor(m, byID)
+	}
+	return nil
+}
+
+// blockedNextFor describes m through its unmet dependencies.
+func blockedNextFor(m milestone, byID map[string]milestone) *blockedNext {
+	var unmet []string
+	for _, dep := range m.Deps {
+		if !depSatisfied(dep, byID) {
+			status := "missing"
+			if dm, ok := byID[dep]; ok {
+				status = milestoneStatusWord(dm)
 			}
+			unmet = append(unmet, fmt.Sprintf("%s (status: %s)", dep, status))
 		}
-		return &blockedNext{Milestone: m, UnmetDeps: unmet}
+	}
+	return &blockedNext{Milestone: m, UnmetDeps: unmet}
+}
+
+// nextTaskBlockedByDeps explains a nil nextTask that does not mean "no work
+// left": the first workable task skipped only because its milestone's
+// dependencies are unmet, described through that milestone. This is the
+// task-line counterpart of nextBlockedMilestone, for the shape where the
+// next MILESTONE is offerable (say, holding only a [!]) while every workable
+// TASK sits behind a dependency — without it the task line reads a bare
+// "None", indistinguishable from nothing-left. nil when a task is offerable
+// or when nothing workable exists at all.
+func nextTaskBlockedByDeps(tasks []task, milestones []milestone) *blockedNext {
+	if nextTask(tasks, milestones) != nil {
+		return nil
+	}
+	byID := milestonesByID(milestones)
+	for _, t := range tasks {
+		if t.Status != taskInProgress && t.Status != taskTodo {
+			continue
+		}
+		m, ok := byID[t.MilestoneID]
+		if !ok || milestoneDepsMet(m, byID) {
+			continue
+		}
+		return blockedNextFor(m, byID)
 	}
 	return nil
 }

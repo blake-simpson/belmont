@@ -204,7 +204,7 @@ In this example:
 
 Milestones without a `(depends: ...)` declaration are treated as having no dependencies and are eligible for immediate parallel execution. A `(depends:)` naming no existing milestone is ignored rather than treated as blocking.
 
-Dependencies also drive what is offered as **next** (#59): `belmont status`'s "Next Milestone"/"Next" lines, and the milestone selection in `/belmont:implement`, `/belmont:next` and `/belmont:loop`, all skip a milestone whose `(depends:)` is unmet — a dependency is met once the named milestone is all-done (`[x]`/`[v]`/`[-]`). When every pending milestone is dependency-blocked, status prints `(waiting on dependencies) M<a> depends on M<b> (status: …)` instead of `None` — `None` means finished, and loop stop conditions read it that way.
+Dependencies also drive what is offered as **next** (#59): `belmont status`'s "Next Milestone"/"Next" lines, and the milestone selection in `/belmont:implement`, `/belmont:next` and `/belmont:loop`, all skip a milestone whose `(depends:)` is unmet — a dependency is met once the named milestone is all-done: at least one task, every one `[x]`/`[v]`/`[-]` (an empty milestone never satisfies a dependency). When every pending milestone is dependency-blocked, status prints `(waiting on dependencies) M<a> depends on M<b> (status: …)` instead of `None` — `None` means finished, and loop stop conditions read it that way.
 
 ### Worktree Lifecycle
 

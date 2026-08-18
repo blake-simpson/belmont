@@ -173,6 +173,7 @@ func buildStatus(root string, maxName int, feature string) (statusReport, error)
 		report.NextMilestone = nextMilestone(report.Milestones)
 		report.NextTask = nextTask(report.Tasks, report.Milestones)
 		report.NextBlocked = nextBlockedMilestone(report.Milestones)
+		report.NextTaskBlocked = nextTaskBlockedByDeps(report.Tasks, report.Milestones)
 		report.TechPlanReady = techPlanReady(techPlanPath)
 		report.OverallStatus = computeOverallStatus(report.Tasks)
 
@@ -437,6 +438,10 @@ func renderStatus(report statusReport, color bool, showArchived bool) string {
 		sb.WriteString(fmt.Sprintf("  - %s - %s\n", report.NextTask.ID, report.NextTask.Name))
 	case report.NextBlocked != nil:
 		sb.WriteString("  - (waiting on dependencies — see Next Milestone above)\n")
+	case report.NextTaskBlocked != nil:
+		b := report.NextTaskBlocked
+		sb.WriteString(fmt.Sprintf("  - (waiting on dependencies) next candidate sits in %s — depends on %s\n",
+			b.Milestone.ID, strings.Join(b.UnmetDeps, ", ")))
 	default:
 		sb.WriteString("  - None\n")
 	}
@@ -579,9 +584,15 @@ func renderFeatureListing(report statusReport, color bool, showArchived bool) st
 			// Show next task if feature is in progress
 			if f.NextTask != nil && f.Status == "In Progress" {
 				sb.WriteString(fmt.Sprintf("  Next: %s — %s\n", f.NextTask.ID, f.NextTask.Name))
-			} else if f.NextBlocked != nil && f.Status == "In Progress" {
-				sb.WriteString(fmt.Sprintf("  Next: waiting on dependencies — %s depends on %s\n",
-					f.NextBlocked.Milestone.ID, strings.Join(f.NextBlocked.UnmetDeps, ", ")))
+			} else if f.Status == "In Progress" {
+				b := f.NextBlocked
+				if b == nil {
+					b = f.NextTaskBlocked
+				}
+				if b != nil {
+					sb.WriteString(fmt.Sprintf("  Next: waiting on dependencies — %s depends on %s\n",
+						b.Milestone.ID, strings.Join(b.UnmetDeps, ", ")))
+				}
 			}
 
 			// Show blocked tasks if any.

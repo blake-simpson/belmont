@@ -100,7 +100,8 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
   read-only context, whatever its markers say. Each iteration:
   0. PICK THE TARGET MILESTONE <M> from <range>, and do not assume the
      status check picked it for you. `belmont status` names the first
-     milestone that is not fully verified and whose (depends: …) is met —
+     milestone that is not all-done and whose (depends: …) is met (all-done
+     means every task [x]/[v]/[-] — so an all-[x] milestone is NOT named) —
      it knows nothing about <range> — and /belmont:implement independently
      selects a milestone of its own. A [!] task satisfies both forever, so
      a milestone whose ONLY live work is [!] is named again on every
@@ -109,8 +110,10 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
      [ ], [>] or [x] task. If not, walk down PROGRESS.md's milestone
      headings within <range> to the first one that does. SKIP a milestone
      whose heading's (depends: …) names any milestone that is not yet
-     all-done — all-done means every live task in it reads [x], [v] or
-     [-]; a name matching no milestone does not block. Its dependencies
+     all-done — all-done means it has at least one task and every one
+     reads [x], [v] or [-]; an EMPTY milestone is never all-done and so
+     never satisfies a dependency, while a name matching no milestone at
+     all does not block. Its dependencies
      come first, and if they are in <range> this walk reaches them. If NO
      milestone in <range> qualifies, stop and report per the blocked-task
      rule below: either every remaining pending task in <range> is [!],
@@ -150,9 +153,8 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
      incomplete. ONE EXCEPTION, and it is an instruction to INCLUDE, not
      merely to record: if your Step 1 scan surfaces [x] tasks in an EARLIER
      milestone IN <range>, add them to this pass — dispatch them to the
-     verification
-     alongside <M>'s tasks, and record the resulting
-     [x]->[v] flips for those that pass. That rescan is the documented
+     verification and code-review agents alongside <M>'s tasks, and record
+     the resulting [x]->[v] flips for those that pass. That rescan is the documented
      recovery for a verification whose flips were never written; this
      scoping rule must not suppress it. An out-of-range [x] is NOT yours
      to verify — on a bounded run the range exists precisely because the
@@ -395,7 +397,8 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
   read-only context, whatever its markers say. Each iteration:
   0. PICK THE TARGET MILESTONE <M> from <range>, and do not assume the
      status check picked it for you. `belmont status` names the first
-     milestone that is not fully verified and whose (depends: …) is met —
+     milestone that is not all-done and whose (depends: …) is met (all-done
+     means every task [x]/[v]/[-] — so an all-[x] milestone is NOT named) —
      it knows nothing about <range> — and belmont:implement independently
      selects a milestone of its own. A [!] task satisfies both forever, so
      a milestone whose ONLY live work is [!] is named again on every
@@ -404,8 +407,10 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
      [ ], [>] or [x] task. If not, walk down PROGRESS.md's milestone
      headings within <range> to the first one that does. SKIP a milestone
      whose heading's (depends: …) names any milestone that is not yet
-     all-done — all-done means every live task in it reads [x], [v] or
-     [-]; a name matching no milestone does not block. Its dependencies
+     all-done — all-done means it has at least one task and every one
+     reads [x], [v] or [-]; an EMPTY milestone is never all-done and so
+     never satisfies a dependency, while a name matching no milestone at
+     all does not block. Its dependencies
      come first, and if they are in <range> this walk reaches them. If NO
      milestone in <range> qualifies, stop and report per the blocked-task
      rule below: either every remaining pending task in <range> is [!],
@@ -445,9 +450,8 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
      incomplete. ONE EXCEPTION, and it is an instruction to INCLUDE, not
      merely to record: if your Step 1 scan surfaces [x] tasks in an EARLIER
      milestone IN <range>, add them to this pass — dispatch them to the
-     verification
-     alongside <M>'s tasks, and record the resulting
-     [x]->[v] flips for those that pass. That rescan is the documented
+     verification and code-review agents alongside <M>'s tasks, and record
+     the resulting [x]->[v] flips for those that pass. That rescan is the documented
      recovery for a verification whose flips were never written; this
      scoping rule must not suppress it. An out-of-range [x] is NOT yours
      to verify — on a bounded run the range exists precisely because the

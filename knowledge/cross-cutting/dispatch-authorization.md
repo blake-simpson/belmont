@@ -38,7 +38,7 @@ This mirrors the host's own carve-out rather than fighting it: Claude Code's `Wo
 
 **The invariant is universal; the enforcement is not.** `dispatch-strategy.md` is included by five skills — `implement`, `verify`, `next` (added by #54; it was the sharp gap, having called itself a "lightweight implementation orchestrator" with no tool-name check, no authorization, and no announcement line, on the path both `belmont auto`'s `actionImplementNext`/`actionFixAll` and `/belmont:loop`'s whole follow-up step run through), `debug-auto`, `debug-manual`. Three more instruct sub-agent dispatch and include none of it:
 
-- **`tech-plan`** (reached by `actionReplan`), **`product-plan`**, **`working-backwards`** — all dispatch research sub-agents via `proactive-research.md`, which names `Explore`/`general-purpose` but carries no tool-name check, no authorization statement, and no announcement line. Lower stakes: a skipped research sub-agent degrades a plan rather than dropping implementation work, which is why #54 closed without them.
+- **`tech-plan`** (reached by `actionReplan`), **`product-plan`**, **`working-backwards`** — all dispatch research sub-agents via `proactive-research.md`, which names `Explore`/`general-purpose` but carries no tool-name check, no authorization statement, and no announcement line. Lower stakes: a skipped research sub-agent degrades a plan rather than dropping implementation work, which is why #54 closed without them. Tracked as #63.
 
 Until that trio is covered, do not read "the orchestrator skills" as "everywhere that dispatches".
 
@@ -52,7 +52,7 @@ What follows is the separate question — whether it should come back when a sta
 
 **It is absent exactly where Belmont parallelises hardest.** `belmont auto` shells out `claude -p` (`toolexec.go`), and teammates do not spawn in non-interactive mode. Auto's parallelism is wave-level across isolated git worktrees with their own ports and a merge-back — real filesystem isolation. Teammates share one working tree.
 
-Skill by skill, for the four that include this partial:
+Skill by skill, for the four that included this partial when teams were removed (`next` gained it later, via #54, and is implement-phase-3-shaped — sequential implementation dispatch over shared files, exactly the case the per-task team fan-out must never return to):
 
 - **`implement`, phases 1–2.** `codebase-agent` and `design-agent` run simultaneously, never address each other, and write disjoint sections of the MILESTONE file. There is nothing to message about, and they already run concurrently as parallel dispatch calls in one message. A team buys two extra session spawns and no additional concurrency.
 - **`implement`, phase 3.** This is the one to not restore. `main` carried the only instruction where a team changed behaviour: *"Add an implementation-agent into the team per task in the milestone… Use the team-lead to coordinate between them if they need to edit the same areas."* A milestone is 3–6 tasks in one vertical slice, so they routinely touch the same files; `implementation-agent` commits each task separately; and every one of those agents appends to the same `## Implementation Log`, which Step 4 reads and which is the only record of what actually ran. "The team-lead coordinates" is prose, not a lock.

@@ -180,6 +180,7 @@ func listFeaturesWithOverrides(featuresDir string, maxName int, worktreeOverride
 		featureNextMilestone := nextMilestone(milestones)
 		featureNextTask := nextTask(tasks, milestones)
 		featureNextBlocked := nextBlockedMilestone(milestones)
+		featureNextTaskBlocked := nextTaskBlockedByDeps(tasks, milestones)
 
 		status := computeOverallStatus(tasks)
 
@@ -207,6 +208,7 @@ func listFeaturesWithOverrides(featuresDir string, maxName int, worktreeOverride
 			NextMilestone:   featureNextMilestone,
 			NextTask:        featureNextTask,
 			NextBlocked:     featureNextBlocked,
+			NextTaskBlocked: featureNextTaskBlocked,
 			Status:          status,
 			LiveGaps:        liveGaps,
 		})

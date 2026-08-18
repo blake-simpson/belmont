@@ -191,7 +191,7 @@ When dispatching the implementation agent (Step 3 below), apply the tier overrid
 
 ## Step 1: Find the Next Task
 
-1. Read `{base}/PROGRESS.md` and find the **first pending milestone** (any milestone with unchecked `[ ]` tasks) **whose `(depends: …)` annotation, if present, is met** — a dependency is met when every live task in the named milestone reads `[x]`, `[v]` or `[-]`, or when the name matches no milestone. Never take a task from a milestone whose dependencies are unmet: it runs after them, however early it sits in the file. If pending milestones exist but every one has an unmet dependency, report which milestone waits on which and stop
+1. Read `{base}/PROGRESS.md` and find the **first pending milestone** (any milestone with unchecked `[ ]` tasks) **whose `(depends: …)` annotation, if present, is met** — a dependency is met when the named milestone has at least one task and every one of them reads `[x]`, `[v]` or `[-]` (an empty milestone never satisfies a dependency), or when the name matches no milestone. Never take a task from a milestone whose dependencies are unmet: it runs after them, however early it sits in the file. If pending milestones exist but every one has an unmet dependency, report which milestone waits on which and stop
 2. Within that milestone, find the **first unchecked task** (`[ ]`)
    - **In batch mode**: Only consider follow-up tasks (tasks added by verification). If no follow-up tasks are pending, report "No follow-up tasks to fix — batch mode complete." and stop. Do NOT implement regular tasks.
 3. Look up that task's full definition in `{base}/PRD.md`
