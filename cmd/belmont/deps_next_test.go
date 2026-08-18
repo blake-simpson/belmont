@@ -322,10 +322,13 @@ func TestListingPrefersMilestoneLevelBlockOverTaskLevel(t *testing.T) {
 	}
 }
 
-// The listing's Next line is gated on In Progress: a Not Started feature —
-// even a dependency-blocked one — gets no Next line at all.
+// The listing's Next line is gated on In Progress — BOTH branches: the
+// offerable-task one and the waiting-on-dependencies one. A Not Started
+// feature gets no Next line at all, whichever branch would have fired.
 func TestListingNotStartedFeatureGetsNoNextLine(t *testing.T) {
-	root := writeReverifyFixture(t, `# Progress
+	for name, progress := range map[string]string{
+		// NextTask nil, NextBlocked set: pins the dependency branch's gate.
+		"dep-cycle": `# Progress
 
 ## Milestones
 
@@ -336,16 +339,29 @@ func TestListingNotStartedFeatureGetsNoNextLine(t *testing.T) {
 ### M2: Second (depends: M1)
 
 - [ ] P2-1: b
-`)
-	report, err := buildStatus(root, 55, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := report.Features[0].Status; got != "Not Started" {
-		t.Fatalf("fixture status = %q, want Not Started", got)
-	}
-	out := renderFeatureListing(report, false, false)
-	if strings.Contains(out, "Next:") {
-		t.Errorf("listing prints a Next line for a Not Started feature:\n%s", out)
+`,
+		// NextTask set: pins the offerable-task branch's gate, which predates
+		// this change and had no coverage of its own.
+		"offerable-task": `# Progress
+
+## Milestones
+
+### M1: Only
+
+- [ ] P1-1: a
+`,
+	} {
+		root := writeReverifyFixture(t, progress)
+		report, err := buildStatus(root, 55, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := report.Features[0].Status; got != "Not Started" {
+			t.Fatalf("%s: fixture status = %q, want Not Started", name, got)
+		}
+		out := renderFeatureListing(report, false, false)
+		if strings.Contains(out, "Next:") {
+			t.Errorf("%s: listing prints a Next line for a Not Started feature:\n%s", name, out)
+		}
 	}
 }

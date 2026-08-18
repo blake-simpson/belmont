@@ -131,7 +131,7 @@ Next Milestone:
 Next Individual Task:
   - [Task ID] - [Task name]
 
-(When every pending milestone has an unmet `(depends: …)`, both lines
+When every pending milestone has an unmet `(depends: …)`, both lines
 instead read the CLI's shape — never "None", which means finished:
 Next Milestone:
   - (waiting on dependencies) [Milestone ID] depends on [dep ID] (status: [status]), …
@@ -142,7 +142,7 @@ And when the next MILESTONE is offerable but no task is — every workable
 task sits in a milestone whose dependencies are unmet — the task line
 alone reads:
 Next Individual Task:
-  - (waiting on dependencies) next candidate sits in [Milestone ID] — depends on [dep ID] (status: [status]))
+  - (waiting on dependencies) next candidate sits in [Milestone ID] — depends on [dep ID] (status: [status]), …
 
 Recent Activity:
 ---
