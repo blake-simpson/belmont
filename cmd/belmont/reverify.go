@@ -191,7 +191,9 @@ func runReverifyCmd(args []string) error {
 
 	if len(targets) == 0 {
 		if format == "json" {
-			fmt.Println(`{"verified":0,"results":[]}`)
+			// Same keys as the non-empty document below, so a consumer reads
+			// one schema whether or not anything was dispatched.
+			fmt.Printf("{\"feature\":%s,\"processed\":0,\"passed\":0,\"total_fwlups\":0,\"results\":[]}\n", jsonString(feature))
 		} else {
 			fmt.Fprintln(os.Stderr, "No milestones with unverified tasks to re-verify in the specified range.")
 		}
@@ -367,7 +369,10 @@ func runReverifyCmd(args []string) error {
 
 	if format == "json" {
 		// Build JSON manually to avoid importing encoding/json just for this
-		fmt.Printf(`{"feature":%s,"verified":%d,"passed":%d,"total_fwlups":%d,"results":[`, jsonString(feature), len(results), passed, len(allFwlups))
+		// "processed", not "verified": len(results) counts milestones the loop
+		// attempted — failures included — and the only number this command could
+		// honestly call verified is `passed`, which is already emitted. See #61.
+		fmt.Printf(`{"feature":%s,"processed":%d,"passed":%d,"total_fwlups":%d,"results":[`, jsonString(feature), len(results), passed, len(allFwlups))
 		for i, r := range results {
 			if i > 0 {
 				fmt.Print(",")
