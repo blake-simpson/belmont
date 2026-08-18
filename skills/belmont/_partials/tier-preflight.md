@@ -7,6 +7,7 @@ Non-Claude CLIs (Codex, Gemini, Cursor, Copilot, Pi, opencode) run the skill at 
 1. **Read** `.belmont/features/<slug>/models.yaml`. If absent, skip this preflight (defaults apply).
 2. **Determine the required tier for this skill**:
    - `implement` → `tiers.implementation`
+   - `next` → `tiers.implementation` (the single-task shortcut dispatches the same implementation agent)
    - `verify` → `tiers.verification`
    - `code-review` (if applicable) → `tiers.code-review`
    - `debug-manual` → `tiers.implementation` (the fix itself dispatches the implementation agent; spec reconciliation runs in the orchestrator session at the same model on non-Claude CLIs)

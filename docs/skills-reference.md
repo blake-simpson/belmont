@@ -79,7 +79,7 @@ Implements just the next single pending task — a lightweight alternative to th
 
 - Reads PROGRESS.md to find the first unchecked task in the first pending milestone
 - Creates a **minimal MILESTONE file** with just the single task's context (skips analysis agents)
-- Dispatches the single task to the `implementation-agent` as a sub-agent
+- Dispatches the single task to the `implementation-agent` as a sub-agent — via the same dispatch strategy as `implement`/`verify` (tool-name check, announced approach, `models.yaml` implementation tier when present)
 - After the task is done: marks it as `[x]` done in PROGRESS.md
 - If it was the last task in the milestone, marks the milestone complete
 - **Archives the MILESTONE file** after completion

@@ -65,6 +65,16 @@ than a file read.
 Optional helper:
 - If the CLI is available, `belmont status --format json` can provide a quick summary of the next pending milestone/task.
 
+## Model Tiers
+
+Per-agent model tiers (low/medium/high) are defined in `{base}/models.yaml`. If that file is absent, the implementation agent inherits the session model and you can skip the rest of this section.
+
+<!-- @include tier-registry.md -->
+
+<!-- @include tier-preflight.md -->
+
+When dispatching the implementation agent (Step 3 below), apply the tier override per `dispatch-strategy.md → Model Tier Overrides`: if `models.yaml` `tiers:` has an `implementation` entry, include `model: "<alias>"` in the dispatch call using the tier-registry mapping. If it does not, omit `model:` — the agent inherits the session model.
+
 ## Step 1: Find the Next Task
 
 1. Read `{base}/PROGRESS.md` and find the **first pending milestone** (any milestone with unchecked `[ ]` tasks) **whose `(depends: …)` annotation, if present, is met** — a dependency is met when every live task in the named milestone reads `[x]`, `[v]` or `[-]`, or when the name matches no milestone. Never take a task from a milestone whose dependencies are unmet: it runs after them, however early it sits in the file. If pending milestones exist but every one has an unmet dependency, report which milestone waits on which and stop
@@ -134,9 +144,19 @@ Create `{base}/MILESTONE.md` with a focused, lightweight version of the mileston
 
 If Figma URLs exist for this task, note them in the Design Specifications section so the implementation agent is aware, but do not spawn a design agent.
 
+## Sub-Agent Dispatch Strategy
+
+Apply the following dispatch configuration:
+- **Parallel agents**: None
+- **Sequential agent**: implementation-agent — one dispatch per task. In batch mode that is one dispatch per follow-up task, sequentially; never batch several tasks into a single call.
+
+<!-- @include dispatch-strategy.md -->
+
 ## Step 3: Dispatch to Implementation Agent
 
-**Spawn a sub-agent with this prompt**:
+Use the dispatch method you selected in "Choosing Your Dispatch Method" above. Under **Approach A**, issue a single dispatch call — with `model:` per the Model Tiers section when `models.yaml` names an implementation tier. Under the **Sequential Inline** fallback (Approach B), execute the implementation agent's instructions inline, and say so.
+
+**The sub-agent prompt**:
 
 <!-- @include identity-preamble.md agent_role="implementation" agent_file="implementation-agent.md" -->
 >

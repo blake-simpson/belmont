@@ -24,7 +24,7 @@ Approach selection is gated on **tool presence alone**. A runtime *refusal* of a
 
 ## How it's enforced
 
-`skills/belmont/_partials/dispatch-strategy.md`, inlined at build time into every orchestrator skill (`implement`, `verify`, `debug-auto`, `debug-manual`):
+`skills/belmont/_partials/dispatch-strategy.md`, inlined at build time into every orchestrator skill (`implement`, `verify`, `next`, `debug-auto`, `debug-manual`):
 
 - **"Running this skill is the request to dispatch."** States the authorization as fact and tells the orchestrator not to re-litigate it: a human ran `/belmont:<skill>`, or ran `belmont auto`, which shells out on their behalf. The skill they invoked *is* delegation; the prompt is the user asking, relayed through Belmont.
 - **The choice is re-scoped to presence.** "Choose Approach B because a name below is missing from your tool list — never because dispatching felt unrequested."
@@ -36,12 +36,11 @@ This mirrors the host's own carve-out rather than fighting it: Claude Code's `Wo
 
 ## Known rough edges
 
-**The invariant is universal; the enforcement is not.** `dispatch-strategy.md` is included by exactly four skills — `implement`, `verify`, `debug-auto`, `debug-manual`. At least four more instruct sub-agent dispatch and include none of it:
+**The invariant is universal; the enforcement is not.** `dispatch-strategy.md` is included by five skills — `implement`, `verify`, `next` (added by #54; it was the sharp gap, having called itself a "lightweight implementation orchestrator" with no tool-name check, no authorization, and no announcement line, on the path both `belmont auto`'s `actionImplementNext`/`actionFixAll` and `/belmont:loop`'s whole follow-up step run through), `debug-auto`, `debug-manual`. Three more instruct sub-agent dispatch and include none of it:
 
-- **`next`** — the important one. It calls itself a "lightweight implementation orchestrator", says "dispatch to a sub-agent, don't implement code yourself", and carries no tool-name check, no authorization, and **no announcement line** — so a silent downgrade there is invisible by construction, which is the pre-#45 state. It is not interactive-only: `belmont auto` drives it for `actionImplementNext` and for `actionFixAll`, whose own prompt orders "dispatch to implementation agent" for every FWLUP task, and `loop-recipe.md` routes `/belmont:loop`'s whole follow-up step through it.
-- **`tech-plan`** (reached by `actionReplan`), **`product-plan`**, **`working-backwards`** — all dispatch research sub-agents via `proactive-research.md`. Lower stakes: a skipped research sub-agent degrades a plan rather than dropping implementation work.
+- **`tech-plan`** (reached by `actionReplan`), **`product-plan`**, **`working-backwards`** — all dispatch research sub-agents via `proactive-research.md`, which names `Explore`/`general-purpose` but carries no tool-name check, no authorization statement, and no announcement line. Lower stakes: a skipped research sub-agent degrades a plan rather than dropping implementation work, which is why #54 closed without them.
 
-Tracked as issue #54. Until it closes, do not read "four orchestrator skills" as "everywhere that dispatches".
+Until that trio is covered, do not read "the orchestrator skills" as "everywhere that dispatches".
 
 ## Why Approach A is sub-agents and not agent teams
 
@@ -96,3 +95,4 @@ Skill by skill, for the four that include this partial:
 - 2026-08-15 — red-teamed. Corrected the stated cause (auto sends a literal slash command on Claude; the "Read …SKILL.md" phrasing is pi/opencode-only), narrowed the `models.yaml` claim to per-agent differentiation, scoped "every Claude Code session" to the measured build/account, added `## Known rough edges` for the four dispatching skills the partial does not reach, recorded three rejected mechanical alternatives, and noted #45's approach-letter renumbering so the evidence cannot be misread. Re-measured against the rewritten prose: full live suite green, 13 dispatch announcements, zero inline.
 - 2026-08-16 — recorded why Agent Teams should not return when a stable API ships, skill by skill, and separated that design argument from the correctness fix that removed it. Added the matching `Don't re-do` entry. No new measurement: the section reasons from the four skills' own dispatch configurations and the host's documented teammate semantics.
 - 2026-08-18 — #56: Approach A names the sub-agent type per-CLI (`general-purpose` on Claude Code, `general` on opencode via its `task` tool) instead of hardcoding Claude's, and the tool-presence check names `task` alongside `Agent`/`Task`. Verified against the opencode 1.17.0 binary: the task tool's input schema is `{description, prompt, subagent_type[, task_id, command]}` — no model parameter — so tiers stay Claude-only and `tier-preflight.md` now says "no per-dispatch model override" rather than the no-longer-true "no sub-agent dispatch".
+- 2026-08-18 — #54: `next` gains the partial plus the Model Tiers blocks (`tier-registry` + `tier-preflight`, with a `next` → `tiers.implementation` row), closing the sharp rough edge above. Under `belmont auto` the phase tier always landed via `tierForAction`; what this fixes is interactive mode, where the dispatch call is the only place a tier can be applied and the skill never named one. The `proactive-research.md` trio remains uncovered, deliberately.
