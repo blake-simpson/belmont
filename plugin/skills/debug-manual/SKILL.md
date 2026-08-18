@@ -25,13 +25,14 @@ This skill is for interactive REPL sessions in Claude Code, Codex, Cursor, Winds
 
 ### Model Tier Preflight (non-Claude CLIs)
 
-Non-Claude CLIs (Codex, Gemini, Cursor, Copilot, Pi, opencode) run the entire skill in a single top-level session at whichever model the session was started with — there's no sub-agent dispatch to override mid-session. Before doing any heavy work, compare the **required tier** for the current skill to the **session's current model** and surface a warning if they diverge. Do NOT block execution; let the user decide.
+Non-Claude CLIs (Codex, Gemini, Cursor, Copilot, Pi, opencode) run the skill at whichever model the session was started with — none of them exposes a per-dispatch model override. (opencode can dispatch sub-agents, but its `task` tool carries no model parameter; the rest run everything in one top-level session.) Before doing any heavy work, compare the **required tier** for the current skill to the **session's current model** and surface a warning if they diverge. Do NOT block execution; let the user decide.
 
 **Workflow at start-of-skill (non-Claude only)**:
 
 1. **Read** `.belmont/features/<slug>/models.yaml`. If absent, skip this preflight (defaults apply).
 2. **Determine the required tier for this skill**:
    - `implement` → `tiers.implementation`
+   - `next` → `tiers.implementation` (the single-task shortcut dispatches the same implementation agent)
    - `verify` → `tiers.verification`
    - `code-review` (if applicable) → `tiers.code-review`
    - `debug-manual` → `tiers.implementation` (the fix itself dispatches the implementation agent; spec reconciliation runs in the orchestrator session at the same model on non-Claude CLIs)
@@ -285,15 +286,15 @@ A dispatch call that *fails* is not the same as having no tool. If one is refuse
 
 #### Approach A: Parallel Sub-Agent Dispatch (preferred)
 
-**Required tool**: `Agent` — or `Task`, which is the same tool under its older name on earlier CLI versions. **Either one alone is enough.** If both appear in your tool list, use `Agent`.
+**Required tool**: `Agent` — or `Task`, which is the same tool under its older name on earlier Claude Code versions — or, on opencode, `task`, its own dispatch tool with the same call shape. **Any one alone is enough.** If more than one appears in your tool list, use `Agent`.
 
 If you have one of them, you MUST use this approach:
 
 1. **For agents that run in parallel**, issue all dispatch calls **in the same message** (i.e., as parallel tool calls). Every call passes:
-   - `subagent_type`: `"general-purpose"` (all belmont agents need full tool access including file editing and bash)
+   - `subagent_type`: **the host CLI's name for its full-access general agent — the name is per-CLI, and a wrong one hard-fails the call.** On Claude Code it is `"general-purpose"`. On opencode it is `"general"` — passing `"general-purpose"` there fails with `Unknown agent type: general-purpose is not a valid agent type`. All belmont agents need full tool access including file editing and bash, which is what these general agents carry.
    - `description`: the agent role, e.g. `"codebase-agent"` / `"verification-agent"`
    - `prompt`: the sub-agent prompt given below, verbatim
-   - `model`: only for agents that have a tier in `models.yaml` — see "Model Tier Overrides" below
+   - `model`: only for agents that have a tier in `models.yaml`, and only on Claude Code — opencode's `task` has no model parameter, so a tier cannot ride a dispatch there. See "Model Tier Overrides" below
    - Do **NOT** set `run_in_background: true` — foreground calls return their results to you directly; a background one must be polled for, and the polling is fragile and can lose contact with the sub-agent.
    - Do **NOT** pass `mode:` or `team_name:`. Both are deprecated and ignored. A sub-agent inherits the session's permission mode, which under `belmont auto` is already `bypassPermissions` — the CLI passes `--permission-mode bypassPermissions` to the tool it shells out to.
 2. Because all calls are foreground, you **automatically block** until they complete and **receive their output directly** — no polling, no sleeping.
@@ -303,7 +304,7 @@ If you have one of them, you MUST use this approach:
 
 #### Approach B: Sequential Inline Execution (fallback)
 
-Reach this when you have **neither** `Agent` nor `Task` — several supported CLIs genuinely have no sub-agent dispatch — or when a dispatch call failed and you have said so. Never reach it because dispatching felt unrequested. Then:
+Reach this when **none** of the dispatch tools named above is present — several supported CLIs genuinely have no sub-agent dispatch — or when a dispatch call failed and you have said so. Never reach it because dispatching felt unrequested. Then:
 
 1. For each agent, read its agent file (e.g. `.agents/belmont/<agent-name>.md`)
 2. Execute its instructions fully within your own context
@@ -335,7 +336,7 @@ Agent(description: "implementation-agent", subagent_type: "general-purpose",
 
 **Under Approach B the tiers cannot be honoured**, since there is no dispatch call to put `model:` on. Nothing else reports that — `models.yaml` has no runtime validation — so if you fall back, say so.
 
-**Non-Claude CLIs** (Codex, Gemini, Cursor, Copilot, Pi, opencode): Belmont does not drive a per-dispatch `model:` override on these, so mid-session model override is not available. Use the preflight partial (`tier-preflight.md`) instead, which surfaces a warning if the session model doesn't match the tier the skill expects. Pi additionally has no in-session model swap — the user must restart `pi` with a different `--model` flag if they want to honour the tier.
+**Non-Claude CLIs** (Codex, Gemini, Cursor, Copilot, Pi, opencode): Belmont does not drive a per-dispatch `model:` override on these — opencode dispatches sub-agents, but its `task` tool carries no model parameter (a sub-agent runs at its agent config's pinned model or inherits the session's), and the rest have no dispatch tool at all — so mid-session model override is not available. Use the preflight partial (`tier-preflight.md`) instead, which surfaces a warning if the session model doesn't match the tier the skill expects. Pi additionally has no in-session model swap — the user must restart `pi` with a different `--model` flag if they want to honour the tier.
 
 ### User Context Forwarding (CRITICAL)
 

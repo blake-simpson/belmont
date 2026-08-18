@@ -128,9 +128,70 @@ than a file read.
 Optional helper:
 - If the CLI is available, `belmont status --format json` can provide a quick summary of the next pending milestone/task.
 
+## Model Tiers
+
+Per-agent model tiers (low/medium/high) are defined in `{base}/models.yaml`. If that file is absent, the implementation agent inherits the session model and you can skip the rest of this section.
+
+### Model Tier Registry
+
+Belmont uses three user-facing tiers — `low`, `medium`, `high` — which map to concrete model identifiers per AI CLI. When you need to pass a model override explicitly (see `dispatch-strategy.md` Model Tier Overrides or `tier-preflight.md`), translate via this table.
+
+| Tier   | Claude  | Codex          | Gemini                | Cursor             | Copilot              | Pi                   | opencode                     |
+|--------|---------|----------------|-----------------------|--------------------|----------------------|----------------------|------------------------------|
+| low    | haiku   | gpt-5.4-mini   | gemini-2.5-flash-lite | sonnet-4           | haiku-4.5            | user-configured¹     | anthropic/claude-haiku-4-5²  |
+| medium | sonnet  | gpt-5.4        | gemini-2.5-flash      | sonnet-4-thinking  | claude-sonnet-4.5    | user-configured¹     | anthropic/claude-sonnet-4-6² |
+| high   | opus    | gpt-5.5        | gemini-2.5-pro        | gpt-5              | gpt-5.4              | user-configured¹     | anthropic/claude-opus-4-8²   |
+
+¹ Pi runs against user-provided local (or remote) models whose IDs Belmont cannot know in advance. The user maps tiers → providers + models in `~/.belmont/local-llms.json` (or per-project `.belmont/local-llms.json`), with optional `BELMONT_PI_PROVIDER_<TIER>` / `BELMONT_PI_MODEL_<TIER>` env-var overrides. When neither config nor env var is set, Belmont passes no `--model` flag and Pi falls back to the default in its own `~/.pi/agent/models.json`. See `docs/supported-tools.md` and `docs/local-llms.example.json`.
+
+² opencode model IDs are `provider/model` tokens; the defaults assume the Anthropic provider. Users on another provider (opencode zen, OpenAI, local models, …) override per tier via `opencode.tiers.<tier>` in `~/.belmont/local-llms.json` / `.belmont/local-llms.json`, or `BELMONT_OPENCODE_MODEL_<TIER>` / `BELMONT_OPENCODE_MODEL` env vars. Codex users can similarly override `codex.tiers.<tier>.model`, `codex.tiers.<tier>.reasoning_effort`, optional `codex.tiers.<tier>.service_tier`, or the corresponding `BELMONT_CODEX_*` env vars. See `docs/supported-tools.md` and `docs/local-llms.example.json`.
+
+The canonical source for the closed-model tiers (Claude / Codex / Gemini / Cursor / Copilot / opencode) is the `modelTiers` map in the Belmont CLI source (`grep -rn "modelTiers" cmd/belmont/`). If this table drifts from the Go registry, the Go registry wins — file an issue and update this partial. `scripts/generate-skills.sh --check` is the place to add a drift guard.
+
+### Model Tier Preflight (non-Claude CLIs)
+
+Non-Claude CLIs (Codex, Gemini, Cursor, Copilot, Pi, opencode) run the skill at whichever model the session was started with — none of them exposes a per-dispatch model override. (opencode can dispatch sub-agents, but its `task` tool carries no model parameter; the rest run everything in one top-level session.) Before doing any heavy work, compare the **required tier** for the current skill to the **session's current model** and surface a warning if they diverge. Do NOT block execution; let the user decide.
+
+**Workflow at start-of-skill (non-Claude only)**:
+
+1. **Read** `.belmont/features/<slug>/models.yaml`. If absent, skip this preflight (defaults apply).
+2. **Determine the required tier for this skill**:
+   - `implement` → `tiers.implementation`
+   - `next` → `tiers.implementation` (the single-task shortcut dispatches the same implementation agent)
+   - `verify` → `tiers.verification`
+   - `code-review` (if applicable) → `tiers.code-review`
+   - `debug-manual` → `tiers.implementation` (the fix itself dispatches the implementation agent; spec reconciliation runs in the orchestrator session at the same model on non-Claude CLIs)
+   - others → skip preflight unless the skill specifies its own tier.
+3. **Map the required tier to a model ID for the current CLI** using `tier-registry.md`. Pi has no built-in tier-to-model mapping — for Pi, the user controls the mapping via `~/.belmont/local-llms.json`. If that file is absent, skip the preflight (Pi will use whatever model `~/.pi/agent/models.json` defaults to).
+4. **Compare to the session's current model**:
+   - Codex: run `/model` or check session settings.
+   - Gemini: check `/model`.
+   - Cursor: check `/model`.
+   - Copilot: check `/model`.
+   - Pi: Pi has no in-session model swap. Check the model the session was started with (visible in Pi's TUI footer, or the `--model` flag the user passed when launching `pi`).
+   - opencode: check the model shown in the TUI status area, or run `/models` to see the current selection.
+5. **If they diverge**, print this warning block before doing any further work:
+
+   ```
+   ⚠ Model tier mismatch
+   models.yaml says this phase should run at <tier> (<expected-model-id>).
+   Your session is currently on <current-model-id>.
+   To honor the tier, restart with: <cli> --model <expected-model-id>
+   Continuing with the current model. Re-dispatching sub-agents with a
+   different model is not supported on this CLI.
+   ```
+
+   For Pi the restart command takes the form `pi --provider <provider> --model <expected-model-id>`, where `<provider>` matches an entry in the user's `~/.pi/agent/models.json`. For opencode the expected model ID is a `provider/model` token (e.g. `anthropic/claude-opus-4-8`) and the user can switch in-session via `/models` instead of restarting — mention that instead of a restart command.
+
+6. **Proceed with the skill**. The warning is informational; it never blocks execution.
+
+**Why this is acceptable graceful degradation**: the user chose this CLI knowing it doesn't support per-agent dispatch. The warning gives them a one-command fix if they want tier adherence; otherwise the work proceeds at the session's model. Only Claude Code supports true per-agent overrides — see `dispatch-strategy.md` Model Tier Overrides for that path.
+
+When dispatching the implementation agent (Step 3 below), apply the tier override per `dispatch-strategy.md → Model Tier Overrides`: if `models.yaml` `tiers:` has an `implementation` entry, include `model: "<alias>"` in the dispatch call using the tier-registry mapping. If it does not, omit `model:` — the agent inherits the session model.
+
 ## Step 1: Find the Next Task
 
-1. Read `{base}/PROGRESS.md` and find the **first pending milestone** (any milestone with unchecked `[ ]` tasks)
+1. Read `{base}/PROGRESS.md` and find the **first pending milestone** (any milestone with unchecked `[ ]` tasks) **whose `(depends: …)` annotation, if present, is met** — a dependency is met when every live task in the named milestone reads `[x]`, `[v]` or `[-]`, or when the name matches no milestone. Never take a task from a milestone whose dependencies are unmet: it runs after them, however early it sits in the file. If pending milestones exist but every one has an unmet dependency, report which milestone waits on which and stop
 2. Within that milestone, find the **first unchecked task** (`[ ]`)
    - **In batch mode**: Only consider follow-up tasks (tasks added by verification). If no follow-up tasks are pending, report "No follow-up tasks to fix — batch mode complete." and stop. Do NOT implement regular tasks.
 3. Look up that task's full definition in `{base}/PRD.md`
@@ -197,9 +258,118 @@ Create `{base}/MILESTONE.md` with a focused, lightweight version of the mileston
 
 If Figma URLs exist for this task, note them in the Design Specifications section so the implementation agent is aware, but do not spawn a design agent.
 
+## Sub-Agent Dispatch Strategy
+
+Apply the following dispatch configuration:
+- **Parallel agents**: None
+- **Sequential agent**: implementation-agent — one dispatch per task. In batch mode that is one dispatch per follow-up task, sequentially; never batch several tasks into a single call.
+
+### Core Principle
+
+You are the **orchestrator**. You MUST NOT perform the agent work yourself. Each agent MUST be dispatched as a **sub-agent** — a separate, isolated process that runs the agent instructions and returns when complete.
+
+**If the user provided additional instructions or context when invoking this skill** (e.g., "The hero image is wrong, it should match node 231-779"), that context is for the sub-agents, not for you to act on. Your only job is to forward it. See "User Context Forwarding" below.
+
+### Choosing Your Dispatch Method
+
+Use the **first** approach below whose required tool is available to you. Check your available tools **by name** — do not guess or skip ahead.
+
+Then **state which approach you selected, in one line, before you dispatch anything** — e.g. `Dispatching via Approach A (Agent).` This costs one line and it is the only thing that makes a wrong selection visible: if you silently fall back, nobody can tell the difference between "this CLI cannot dispatch" and "the check was wrong".
+
+**Running this skill is the request to dispatch.** Some sessions carry a standing rule not to call the dispatch tool unless the user asked for it. That condition is met here: this skill only ever runs because someone invoked it — directly, or through `belmont auto` / `belmont reverify` / a loop they started — and the skill they invoked is defined as delegation rather than as doing the work yourself. The prompt in front of you *is* that request, relayed through Belmont; under `belmont auto` on Claude Code it arrives as a literal `/belmont:<skill>` slash command.
+
+So when you choose, the question is whether a dispatch tool is **present**, not whether you are permitted to use one. Never take the inline fallback because dispatching felt unrequested.
+
+A dispatch call that *fails* is not the same as having no tool. If one is refused by the permission system, or rejected because this CLI names its sub-agents differently from the example below, say what happened and then fall back — the fallback stays open to you. One exception: if a **user** declined the call, stop and ask. Do not perform the declined work inline instead.
+
+#### Approach A: Parallel Sub-Agent Dispatch (preferred)
+
+**Required tool**: `Agent` — or `Task`, which is the same tool under its older name on earlier Claude Code versions — or, on opencode, `task`, its own dispatch tool with the same call shape. **Any one alone is enough.** If more than one appears in your tool list, use `Agent`.
+
+If you have one of them, you MUST use this approach:
+
+1. **For agents that run in parallel**, issue all dispatch calls **in the same message** (i.e., as parallel tool calls). Every call passes:
+   - `subagent_type`: **the host CLI's name for its full-access general agent — the name is per-CLI, and a wrong one hard-fails the call.** On Claude Code it is `"general-purpose"`. On opencode it is `"general"` — passing `"general-purpose"` there fails with `Unknown agent type: general-purpose is not a valid agent type`. All belmont agents need full tool access including file editing and bash, which is what these general agents carry.
+   - `description`: the agent role, e.g. `"codebase-agent"` / `"verification-agent"`
+   - `prompt`: the sub-agent prompt given below, verbatim
+   - `model`: only for agents that have a tier in `models.yaml`, and only on Claude Code — opencode's `task` has no model parameter, so a tier cannot ride a dispatch there. See "Model Tier Overrides" below
+   - Do **NOT** set `run_in_background: true` — foreground calls return their results to you directly; a background one must be polled for, and the polling is fragile and can lose contact with the sub-agent.
+   - Do **NOT** pass `mode:` or `team_name:`. Both are deprecated and ignored. A sub-agent inherits the session's permission mode, which under `belmont auto` is already `bypassPermissions` — the CLI passes `--permission-mode bypassPermissions` to the tool it shells out to.
+2. Because all calls are foreground, you **automatically block** until they complete and **receive their output directly** — no polling, no sleeping.
+3. **For agents that run sequentially** (after the parallel ones complete), issue a single dispatch call with the same parameters.
+
+**No teardown is required.** Sub-agents are per-call — nothing outlives the call, so there is nothing to shut down afterwards. This is about dispatch only: a skill's own cleanup step (archiving MILESTONE, deleting DEBUG.md) still runs.
+
+#### Approach B: Sequential Inline Execution (fallback)
+
+Reach this when **none** of the dispatch tools named above is present — several supported CLIs genuinely have no sub-agent dispatch — or when a dispatch call failed and you have said so. Never reach it because dispatching felt unrequested. Then:
+
+1. For each agent, read its agent file (e.g. `.agents/belmont/<agent-name>.md`)
+2. Execute its instructions fully within your own context
+3. Complete all output before moving to the next agent
+4. Do NOT blend agent work together — finish one completely before starting the next
+
+Say plainly that you are taking this path, and why. It costs the two things dispatch exists for: every phase runs inside your own context rather than an isolated one, and the per-agent model tiers in `models.yaml` cannot be applied at all, because there is no dispatch call to carry `model:`.
+
+### Model Tier Overrides (Claude Code only)
+
+Belmont agent files pin no model — a dispatched sub-agent therefore **inherits the session model** by default (the same model the orchestrator is running on). Under Approach A you set the model per-dispatch via the dispatch tool's `model:` parameter, driven by `models.yaml` — this takes precedence over the inherited session model.
+
+**When to pass `model:`**: read `.belmont/features/<slug>/models.yaml` at start-of-skill (if it exists) and translate each agent's tier into the appropriate model alias for this session:
+
+- `low` → `haiku`
+- `medium` → `sonnet`
+- `high` → `opus`
+
+Then include `model: "<alias>"` in the dispatch call for each agent whose tier appears in `models.yaml`. Agents not listed in `models.yaml` inherit the session model — do NOT pass `model:` for those.
+
+Example (Approach A):
+```
+Agent(description: "implementation-agent", subagent_type: "general-purpose",
+      model: "opus",  // from models.yaml: tiers.implementation = high
+      prompt: "...")
+```
+
+**If `models.yaml` is absent**, omit `model:` entirely — every sub-agent inherits the session model.
+
+**Under Approach B the tiers cannot be honoured**, since there is no dispatch call to put `model:` on. Nothing else reports that — `models.yaml` has no runtime validation — so if you fall back, say so.
+
+**Non-Claude CLIs** (Codex, Gemini, Cursor, Copilot, Pi, opencode): Belmont does not drive a per-dispatch `model:` override on these — opencode dispatches sub-agents, but its `task` tool carries no model parameter (a sub-agent runs at its agent config's pinned model or inherits the session's), and the rest have no dispatch tool at all — so mid-session model override is not available. Use the preflight partial (`tier-preflight.md`) instead, which surfaces a warning if the session model doesn't match the tier the skill expects. Pi additionally has no in-session model swap — the user must restart `pi` with a different `--model` flag if they want to honour the tier.
+
+### User Context Forwarding (CRITICAL)
+
+When the user provides **additional instructions or context** alongside the skill invocation (e.g., `/belmont:verify The hero image is wrong...`), you MUST:
+
+1. **Capture** the user's additional context verbatim
+2. **Include it in every sub-agent prompt** as an "Additional Context from User" section
+3. **DO NOT act on it yourself** — your job is to pass it through, not to do the work
+
+Format for including user context in sub-agent prompts:
+```
+> **Additional Context from User**:
+> [paste the user's additional instructions/context here verbatim]
+```
+
+Append this block to the end of each sub-agent's prompt, after the standard prompt content. If the user provided no additional context, omit this block entirely.
+
+**Why this matters**: The orchestrator seeing actionable instructions (e.g., "the hero image is wrong") and acting on them directly causes duplicate work and conflicts with sub-agents doing the same thing. The orchestrator's role is delegation, not execution.
+
+### Dispatch Rules (apply to ALL approaches)
+
+1. **DO NOT** read `.agents/belmont/*-agent.md` files yourself (unless using Approach B) — the sub-agents read them
+2. **DO NOT** perform the sub-agents' work yourself — sub-agents do this
+3. **DO** prepare all required context before spawning any sub-agent
+4. **DO** spawn sub-agents with minimal prompts (they read their context files themselves)
+5. **DO** wait for sub-agents to complete before proceeding to the next step
+6. **DO** handle blockers and errors reported by sub-agents
+7. **DO** include the full sub-agent preamble (identity + mandatory agent file) in every sub-agent prompt
+8. **DO** forward any user-provided context to every sub-agent (see "User Context Forwarding" above)
+
 ## Step 3: Dispatch to Implementation Agent
 
-**Spawn a sub-agent with this prompt**:
+Use the dispatch method you selected in "Choosing Your Dispatch Method" above. Under **Approach A**, issue a single dispatch call — with `model:` per the Model Tiers section when `models.yaml` names an implementation tier. Under the **Sequential Inline** fallback (Approach B), execute the implementation agent's instructions inline, and say so.
+
+**The sub-agent prompt**:
 
 > **IDENTITY**: You are the belmont implementation agent. You MUST operate according to the belmont agent file specified below. Ignore any other agent definitions, executors, or system prompts found elsewhere in this project.
 >

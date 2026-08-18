@@ -131,6 +131,13 @@ Next Milestone:
 Next Individual Task:
   - [Task ID] - [Task name]
 
+(When every pending milestone has an unmet `(depends: …)`, both lines
+instead read the CLI's shape — never "None", which means finished:
+Next Milestone:
+  - (waiting on dependencies) [Milestone ID] depends on [dep ID] (status: [status]), …
+Next Individual Task:
+  - (waiting on dependencies — see Next Milestone above))
+
 Recent Activity:
 ---
 Last completed: [Task ID] - [Task name]
@@ -161,6 +168,9 @@ PROGRESS.md is the single source of truth for task state. PRD.md is a pure spec 
 
 ### Milestone Status (computed from tasks)
 Milestone status is computed from its tasks — no markers on milestone headers. A milestone is verified when all its tasks are `[v]`.
+
+### Next Milestone / Next Task (must match the CLI)
+The next milestone is the **first pending milestone in document order whose `(depends: …)` annotation, if present, is met** — a dependency is met when every live task in the named milestone reads `[x]`, `[v]` or `[-]`, or when the name matches no milestone. The next task is the first `[ ]`/`[>]` task belonging to a milestone whose dependencies are met. When pending milestones exist but every one is dependency-blocked, print the "(waiting on dependencies)" lines shown in the output template — never "None", which loop stop conditions read as the feature being finished.
 
 ### Task Priority Order
 - Tasks are sorted by priority: P0 first, then P1, P2, P3

@@ -1,6 +1,6 @@
 ---
 name: loop
-description: Claude Code or Codex only. Drive a single feature to completion by self-pacing /belmont:implement → verify → next → status until no pending milestones remain.
+description: Claude Code or Codex only. Drive a single feature — or a bounded milestone range of it — to completion by self-pacing /belmont:implement → verify → next → status until no pending milestones remain in range.
 alwaysApply: false
 ---
 
@@ -60,26 +60,29 @@ Let the user decide whether to restructure; do not attempt an automatic migratio
 
 ## Argument
 
-`$ARGUMENTS` is the feature name or slug to drive (e.g. `/belmont:loop checkout`). 
+`$ARGUMENTS` is the feature name or slug to drive, optionally followed by milestone bounds (e.g. `/belmont:loop checkout`, or `/belmont:loop checkout --from M21 --to M22`).
+
+- **`--from M<n>` / `--to M<n>` bound the run to a milestone range**, mirroring single-feature `belmont auto`'s flags. Either may appear alone (`--from M21` means M21 to the end; `--to M5` means the start to M5). Resolve the bounds to `<range>`: `M<a>..M<b>` when given, `all milestones` when not. This is how you drive two dispatchable milestones on a feature whose others are human-executed, and then stop — without bounds, the loop's success condition ("everything verified") is unreachable on such a feature and the loop walks into work no agent can do (issue #58).
+- A bound that names no milestone in PROGRESS.md is an error: report it, list the milestone IDs, and stop rather than guessing.
 
 - If `$ARGUMENTS` is empty: list the feature directories under `.belmont/features/`, read each `PRD.md` for its name and status, and ask the user which feature to drive. If exactly one feature exists, you may select it and confirm. If none exist, tell the user to run `/belmont:product-plan` first, then stop.
 - If `$ARGUMENTS` names a feature that does not resolve to a `.belmont/features/<slug>/` directory: report the mismatch, list the available feature slugs, and ask the user to clarify rather than guessing.
 
-Resolve the argument to a single feature slug before starting the loop. The loop only ever progresses this one feature — never start unrelated work.
+Resolve the argument to a single feature slug (and `<range>`) before starting the loop. The loop only ever progresses this one feature — and, when bounded, only milestones in `<range>` — never start unrelated work.
 
 ## Preflight (run once, before looping)
 
 1. Resolve the feature slug from `$ARGUMENTS` as described above. Call it `<feature>`.
-2. Confirm the feature exists and see how many milestones are pending. Prefer `belmont status --feature <feature>` if the CLI is installed — the Go CLI parses PROGRESS.md itself, so this costs one command and no file reads. Fall back to `/belmont:status <feature>` only if the CLI is unavailable.
-3. If every milestone is already **verified**, report that the feature is complete and **stop** — do not start a loop.
-4. If milestones read *done* but not verified (`[x]`, not `[v]`), that is not finished — `belmont status` flags it and names `belmont reverify`. Which route depends on whether there is anything left to build:
-   - **No pending milestone, only `[x]` tasks** (the whole feature is built but unverified): run `belmont reverify --feature <feature>` and stop. Do **not** enter the loop. Iteration step 1 is "implement the next pending milestone", and there is no such milestone — the loop has nothing to do on its first step, and `reverify` is the command that exists for exactly this state.
-   - **Pending milestones as well**: start the loop. Step 2's earlier-milestone rescan picks the `[x]` tasks up as it goes.
+2. Confirm the feature exists and see how many milestones are pending. Prefer `belmont status --feature <feature>` if the CLI is installed — the Go CLI parses PROGRESS.md itself, so this costs one command and no file reads. Fall back to `/belmont:status <feature>` only if the CLI is unavailable. When bounds were given, read the status output through them: every check below is about milestones **in `<range>`**, and out-of-range state — however unfinished — is not this run's business.
+3. If every milestone in `<range>` is already **verified**, report that the range is complete (naming what it excluded, if bounded) and **stop** — do not start a loop.
+4. If in-range milestones read *done* but not verified (`[x]`, not `[v]`), that is not finished — `belmont status` flags it and names `belmont reverify`. Which route depends on whether there is anything left to build:
+   - **No pending milestone in `<range>`, only `[x]` tasks** (everything in range is built but unverified): run `belmont reverify --feature <feature>` — with `--from M<a> --to M<b>` when bounded, so re-verification never touches milestones the bounds excluded — and stop. Do **not** enter the loop. Iteration step 1 is "implement the next pending milestone", and there is no such milestone in range — the loop has nothing to do on its first step, and `reverify` is the command that exists for exactly this state.
+   - **Pending in-range milestones as well**: start the loop. Step 2's earlier-milestone rescan picks the in-range `[x]` tasks up as it goes.
 5. Otherwise, hand off to the loop driver below.
 
 ## Loop driver
 
-If you are running in Claude Code, start Claude Code's built-in **`/loop`** skill in **self-paced mode** (no fixed interval — let the model decide when to schedule the next iteration). Pass it the iteration recipe below, with `<feature>` substituted for the resolved slug. The exact handoff is:
+If you are running in Claude Code, start Claude Code's built-in **`/loop`** skill in **self-paced mode** (no fixed interval — let the model decide when to schedule the next iteration). Pass it the iteration recipe below, with `<feature>` substituted for the resolved slug and `<range>` for the resolved bounds (`M<a>..M<b>`, or `all milestones` when unbounded). The exact handoff is:
 
 ```
 <!-- The iteration recipe, shared by both drivers.
@@ -88,22 +91,46 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
      next change to the recipe landed in the Claude one only, so Codex users
      would have kept the old loop. Nothing kept them in step, so nothing did.
      /loop = the driver command, /belmont: = how that tool names a skill
-     (`/belmont:` for Claude, `belmont:` for Codex). -->
-/loop Drive the <feature> Belmont feature to completion. Each iteration:
-  0. PICK THE TARGET MILESTONE <M>, and do not assume the status check
-     picked it for you. `belmont status` names the first milestone that is
-     not fully verified, and /belmont:implement independently selects the
-     first milestone holding any task that is not [v] or [-]. A [!] task
-     satisfies both forever, so a milestone whose ONLY live work is [!]
-     is named again on every iteration and neither tool will ever move on.
-     So: confirm the named milestone has at least one [ ], [>] or [x] task.
-     If it has none, walk down PROGRESS.md's milestone headings to the
-     first one that does, and use that. If NO milestone has one, every
-     remaining pending task is [!] — go straight to the blocked-task rule
-     below and stop. Name <M> explicitly in every append below; never let
-     a sub-skill re-derive it.
-     THIS IS ALSO HOW A BACKLOG DRAINS. Selecting the FIRST milestone with
-     workable tasks means the oldest unsettled work is always next, so a
+     (`/belmont:` for Claude, `belmont:` for Codex). <feature> and <range> are
+     substituted by the invoking skill at handoff time, not at build time:
+     <range> is "M<a>..M<b>" when the user bounded the run, else
+     "all milestones". -->
+/loop Drive the <feature> Belmont feature to completion within <range>.
+  Work ONLY milestones in <range>; treat every other milestone's state as
+  read-only context, whatever its markers say. Each iteration:
+  0. PICK THE TARGET MILESTONE <M> from <range>, and do not assume the
+     status check picked it for you. `belmont status` names the first
+     milestone that is not fully verified and whose (depends: …) is met —
+     it knows nothing about <range> — and /belmont:implement independently
+     selects a milestone of its own. A [!] task satisfies both forever, so
+     a milestone whose ONLY live work is [!] is named again on every
+     iteration and neither tool will ever move on.
+     So: confirm the named milestone is in <range> and has at least one
+     [ ], [>] or [x] task. If not, walk down PROGRESS.md's milestone
+     headings within <range> to the first one that does. SKIP a milestone
+     whose heading's (depends: …) names any milestone that is not yet
+     all-done — all-done means every live task in it reads [x], [v] or
+     [-]; a name matching no milestone does not block. Its dependencies
+     come first, and if they are in <range> this walk reaches them. If NO
+     milestone in <range> qualifies, stop and report per the blocked-task
+     rule below: either every remaining pending task in <range> is [!],
+     or what remains waits on milestones that cannot proceed here —
+     blocked, or outside <range>. Name which.
+     WHO EXECUTES <M>? Before dispatching at it, read its tasks. If the
+     spec's own text says the work is done by a person — an interactive
+     fixture run, a sign-off, a console or credential action, a demo the
+     user drives — do NOT send an implementation agent at it: that is
+     triage's human-gated class, known before any agent has tried, and an
+     agent pointed at it can only fail or fabricate. Mark each such task
+     [!] in place with a reason naming what the person must do, add one
+     `## Decisions Log` line per task, and re-run this step. Writing a
+     [!] is allowed; clearing one is the user's. This is what makes the
+     all-[!] stop reachable on a feature whose tail is human-executed.
+     Name <M> explicitly in every append below; never let a sub-skill
+     re-derive it.
+     THIS IS ALSO HOW A BACKLOG DRAINS. Selecting the FIRST in-range
+     milestone with workable tasks means the oldest unsettled work is
+     always next, so a
      PROGRESS.md that already carries a large accumulated follow-up backlog
      — from before the settle rule below existed — is worked milestone by
      milestone, oldest first, and each is settled before anything newer is
@@ -122,11 +149,14 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
      the task state of any other milestone — they may be intentionally
      incomplete. ONE EXCEPTION, and it is an instruction to INCLUDE, not
      merely to record: if your Step 1 scan surfaces [x] tasks in an EARLIER
-     milestone, add them to this pass — dispatch them to the verification
-     and code-review agents alongside <M>'s tasks, and record the resulting
+     milestone IN <range>, add them to this pass — dispatch them to the
+     verification
+     alongside <M>'s tasks, and record the resulting
      [x]->[v] flips for those that pass. That rescan is the documented
      recovery for a verification whose flips were never written; this
-     scoping rule must not suppress it. Never flip a task this pass did not
+     scoping rule must not suppress it. An out-of-range [x] is NOT yours
+     to verify — on a bounded run the range exists precisely because the
+     other milestones are not this loop's business. Never flip a task this pass did not
      actually verify."
   3. If verify reported follow-up (FWLUP) tasks, TRIAGE before fixing.
      Read the actual follow-up descriptions in PROGRESS.md — do not just
@@ -249,19 +279,32 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
      below exists to prevent, and the two rules must not contradict each
      other. They are verdict inputs, not stop triggers.
      STOP when any of these holds:
-       - every milestone is verified — the "Next Milestone" line reads None
-         AND status prints no done-but-unverified warning ("Next Milestone:
-         None" alone is not enough, because [x] counts as done);
-       - every remaining pending task in the feature is [!] (see the
+       - every milestone in <range> is verified — each one's tasks all
+         read [v] (withdrawn [-] aside) in the status output. When <range>
+         is all milestones this is the "Next Milestone" line reading None
+         AND no done-but-unverified warning ("Next Milestone: None" alone
+         is not enough, because [x] counts as done; and a line reading
+         "(waiting on dependencies)" is NOT None — work remains). On a
+         bounded run do NOT use the None line: status reports the whole
+         feature, so out-of-range milestones keep it non-None forever, and
+         its done-but-unverified warning may name only out-of-range tasks
+         — check the in-range milestones' own task states instead;
+       - every remaining pending task in <range> is [!] (see the
          blocked-task rule below);
+       - nothing in <range> qualifies for step 0 because the remaining
+         in-range work waits on milestones that are blocked or outside
+         <range> — report which, per step 0;
        - a COUNTED STOP CONDITION (a-d) fires.
      RECORD each iteration, for the final report: any task left at [x], and
      whether the step-3 circuit breaker fired for that milestone. Both go in
      {base}/NOTES.md under `## Loop decisions` — you will have compacted by
      the time you need them.
-     THE VERDICT, when you stop. Report COMPLETE only if every milestone is
-     verified, no task is at [x], the circuit breaker never fired, and no
-     [!] remains. Otherwise report INCOMPLETE and say which of these holds:
+     THE VERDICT, when you stop. Report COMPLETE only if every milestone
+     in <range> is verified, no in-range task is at [x], the circuit
+     breaker never fired, and no in-range [!] remains. On a bounded run,
+     also name what the range deliberately left out, so COMPLETE cannot be
+     read as "the feature is finished". Otherwise report INCOMPLETE and
+     say which of these holds:
        - Tasks still at [x]. THERE IS NO SUCCESSFUL RUN THAT LEAVES ONE:
          step 2 has no skip, so a task stays [x] only because verification
          found issues, errored, or never recorded its flips — all failures.
@@ -294,8 +337,8 @@ If you are running in Claude Code, start Claude Code's built-in **`/loop`** skil
   other side is `[x]`/`[v]`. If the reason names a PERSON, it is not one
   of these — leave it. If the reason names nothing checkable, leave it and
   say so in the report. Stop for
-  the user ONLY when every remaining pending task in the feature is `[!]`:
-  at that point there is nothing an agent can do, and continuing just
+  the user ONLY when every remaining pending task in <range> is `[!]`:
+  at that point there is nothing an agent can do here, and continuing just
   re-reads the same file. When you stop for that reason, or for any other,
   report the queue with `belmont blockers --feature <feature> --summary`
   (drop --summary when the user needs the full question) and say plainly
@@ -334,7 +377,7 @@ When delegating, you are invoking the `/loop` skill — follow its self-pacing g
 
 **If the `/loop` skill is unavailable** in this Claude Code build, fall back to driving the cycle inline: run steps 0–5 yourself in sequence, then repeat from step 0 for the next milestone, using `ScheduleWakeup` to self-pace between milestones. Stop on the same conditions — all of them, including the blocked-queue one.
 
-If you are running in Codex, start Goal mode with **`/goal`** and use the same iteration recipe as the goal text. The exact goal text is:
+If you are running in Codex, start Goal mode with **`/goal`** and use the same iteration recipe as the goal text, with `<feature>` and `<range>` substituted the same way. The exact goal text is:
 
 ```
 <!-- The iteration recipe, shared by both drivers.
@@ -343,22 +386,46 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
      next change to the recipe landed in the Claude one only, so Codex users
      would have kept the old loop. Nothing kept them in step, so nothing did.
      /goal = the driver command, belmont: = how that tool names a skill
-     (`/belmont:` for Claude, `belmont:` for Codex). -->
-/goal Drive the <feature> Belmont feature to completion. Each iteration:
-  0. PICK THE TARGET MILESTONE <M>, and do not assume the status check
-     picked it for you. `belmont status` names the first milestone that is
-     not fully verified, and belmont:implement independently selects the
-     first milestone holding any task that is not [v] or [-]. A [!] task
-     satisfies both forever, so a milestone whose ONLY live work is [!]
-     is named again on every iteration and neither tool will ever move on.
-     So: confirm the named milestone has at least one [ ], [>] or [x] task.
-     If it has none, walk down PROGRESS.md's milestone headings to the
-     first one that does, and use that. If NO milestone has one, every
-     remaining pending task is [!] — go straight to the blocked-task rule
-     below and stop. Name <M> explicitly in every append below; never let
-     a sub-skill re-derive it.
-     THIS IS ALSO HOW A BACKLOG DRAINS. Selecting the FIRST milestone with
-     workable tasks means the oldest unsettled work is always next, so a
+     (`/belmont:` for Claude, `belmont:` for Codex). <feature> and <range> are
+     substituted by the invoking skill at handoff time, not at build time:
+     <range> is "M<a>..M<b>" when the user bounded the run, else
+     "all milestones". -->
+/goal Drive the <feature> Belmont feature to completion within <range>.
+  Work ONLY milestones in <range>; treat every other milestone's state as
+  read-only context, whatever its markers say. Each iteration:
+  0. PICK THE TARGET MILESTONE <M> from <range>, and do not assume the
+     status check picked it for you. `belmont status` names the first
+     milestone that is not fully verified and whose (depends: …) is met —
+     it knows nothing about <range> — and belmont:implement independently
+     selects a milestone of its own. A [!] task satisfies both forever, so
+     a milestone whose ONLY live work is [!] is named again on every
+     iteration and neither tool will ever move on.
+     So: confirm the named milestone is in <range> and has at least one
+     [ ], [>] or [x] task. If not, walk down PROGRESS.md's milestone
+     headings within <range> to the first one that does. SKIP a milestone
+     whose heading's (depends: …) names any milestone that is not yet
+     all-done — all-done means every live task in it reads [x], [v] or
+     [-]; a name matching no milestone does not block. Its dependencies
+     come first, and if they are in <range> this walk reaches them. If NO
+     milestone in <range> qualifies, stop and report per the blocked-task
+     rule below: either every remaining pending task in <range> is [!],
+     or what remains waits on milestones that cannot proceed here —
+     blocked, or outside <range>. Name which.
+     WHO EXECUTES <M>? Before dispatching at it, read its tasks. If the
+     spec's own text says the work is done by a person — an interactive
+     fixture run, a sign-off, a console or credential action, a demo the
+     user drives — do NOT send an implementation agent at it: that is
+     triage's human-gated class, known before any agent has tried, and an
+     agent pointed at it can only fail or fabricate. Mark each such task
+     [!] in place with a reason naming what the person must do, add one
+     `## Decisions Log` line per task, and re-run this step. Writing a
+     [!] is allowed; clearing one is the user's. This is what makes the
+     all-[!] stop reachable on a feature whose tail is human-executed.
+     Name <M> explicitly in every append below; never let a sub-skill
+     re-derive it.
+     THIS IS ALSO HOW A BACKLOG DRAINS. Selecting the FIRST in-range
+     milestone with workable tasks means the oldest unsettled work is
+     always next, so a
      PROGRESS.md that already carries a large accumulated follow-up backlog
      — from before the settle rule below existed — is worked milestone by
      milestone, oldest first, and each is settled before anything newer is
@@ -377,11 +444,14 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
      the task state of any other milestone — they may be intentionally
      incomplete. ONE EXCEPTION, and it is an instruction to INCLUDE, not
      merely to record: if your Step 1 scan surfaces [x] tasks in an EARLIER
-     milestone, add them to this pass — dispatch them to the verification
-     and code-review agents alongside <M>'s tasks, and record the resulting
+     milestone IN <range>, add them to this pass — dispatch them to the
+     verification
+     alongside <M>'s tasks, and record the resulting
      [x]->[v] flips for those that pass. That rescan is the documented
      recovery for a verification whose flips were never written; this
-     scoping rule must not suppress it. Never flip a task this pass did not
+     scoping rule must not suppress it. An out-of-range [x] is NOT yours
+     to verify — on a bounded run the range exists precisely because the
+     other milestones are not this loop's business. Never flip a task this pass did not
      actually verify."
   3. If verify reported follow-up (FWLUP) tasks, TRIAGE before fixing.
      Read the actual follow-up descriptions in PROGRESS.md — do not just
@@ -504,19 +574,32 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
      below exists to prevent, and the two rules must not contradict each
      other. They are verdict inputs, not stop triggers.
      STOP when any of these holds:
-       - every milestone is verified — the "Next Milestone" line reads None
-         AND status prints no done-but-unverified warning ("Next Milestone:
-         None" alone is not enough, because [x] counts as done);
-       - every remaining pending task in the feature is [!] (see the
+       - every milestone in <range> is verified — each one's tasks all
+         read [v] (withdrawn [-] aside) in the status output. When <range>
+         is all milestones this is the "Next Milestone" line reading None
+         AND no done-but-unverified warning ("Next Milestone: None" alone
+         is not enough, because [x] counts as done; and a line reading
+         "(waiting on dependencies)" is NOT None — work remains). On a
+         bounded run do NOT use the None line: status reports the whole
+         feature, so out-of-range milestones keep it non-None forever, and
+         its done-but-unverified warning may name only out-of-range tasks
+         — check the in-range milestones' own task states instead;
+       - every remaining pending task in <range> is [!] (see the
          blocked-task rule below);
+       - nothing in <range> qualifies for step 0 because the remaining
+         in-range work waits on milestones that are blocked or outside
+         <range> — report which, per step 0;
        - a COUNTED STOP CONDITION (a-d) fires.
      RECORD each iteration, for the final report: any task left at [x], and
      whether the step-3 circuit breaker fired for that milestone. Both go in
      {base}/NOTES.md under `## Loop decisions` — you will have compacted by
      the time you need them.
-     THE VERDICT, when you stop. Report COMPLETE only if every milestone is
-     verified, no task is at [x], the circuit breaker never fired, and no
-     [!] remains. Otherwise report INCOMPLETE and say which of these holds:
+     THE VERDICT, when you stop. Report COMPLETE only if every milestone
+     in <range> is verified, no in-range task is at [x], the circuit
+     breaker never fired, and no in-range [!] remains. On a bounded run,
+     also name what the range deliberately left out, so COMPLETE cannot be
+     read as "the feature is finished". Otherwise report INCOMPLETE and
+     say which of these holds:
        - Tasks still at [x]. THERE IS NO SUCCESSFUL RUN THAT LEAVES ONE:
          step 2 has no skip, so a task stays [x] only because verification
          found issues, errored, or never recorded its flips — all failures.
@@ -549,8 +632,8 @@ If you are running in Codex, start Goal mode with **`/goal`** and use the same i
   other side is `[x]`/`[v]`. If the reason names a PERSON, it is not one
   of these — leave it. If the reason names nothing checkable, leave it and
   say so in the report. Stop for
-  the user ONLY when every remaining pending task in the feature is `[!]`:
-  at that point there is nothing an agent can do, and continuing just
+  the user ONLY when every remaining pending task in <range> is `[!]`:
+  at that point there is nothing an agent can do here, and continuing just
   re-reads the same file. When you stop for that reason, or for any other,
   report the queue with `belmont blockers --feature <feature> --summary`
   (drop --summary when the user needs the full question) and say plainly
@@ -593,10 +676,11 @@ Every stop condition lives **inside** the fenced recipe above, deliberately: the
 
 **Stopping and the verdict are different questions, and step 5 keeps them apart.** Three things bound a *milestone* without ending the *run* — a task left at `[x]`, a fired circuit breaker, and a `[!]` — and all three make the final verdict INCOMPLETE. None of them halts the loop. Ending the whole feature because one milestone hit its bound strands every milestone that had nothing to do with it, which is the failure this skill's blocked-task rule exists to prevent; a stop rule that did it for the breaker instead would just reintroduce it under another name.
 
-The loop stops — no further iteration — when any of these holds. Each is stated in the recipe:
+The loop stops — no further iteration — when any of these holds. Each is stated in the recipe, and each is scoped to `<range>`:
 
-- Every milestone is verified. Combined with no `[x]`, no breaker and no `[!]`, this is **the only COMPLETE verdict**.
-- Every remaining pending task in the feature is `[!]` — the decision queue is all that is left, and no agent action can change the file. A single `[!]`, or one whole blocked milestone, is **not** a stop: step 0 selects past it.
+- Every milestone in `<range>` is verified. Combined with no in-range `[x]`, no breaker and no in-range `[!]`, this is **the only COMPLETE verdict** — and on a bounded run COMPLETE describes the range, not the feature; the report names what the bounds excluded. (A status line reading "(waiting on dependencies)" is not "None": work remains.)
+- Every remaining pending task in `<range>` is `[!]` — the decision queue is all that is left, and no agent action can change the file. A single `[!]`, or one whole blocked milestone, is **not** a stop: step 0 selects past it. Step 0 also converts work the spec assigns to a *person* — an interactive run, a sign-off, a console action — into `[!]` before any agent is dispatched at it, which is what makes this stop reachable on a feature with human-executed milestones.
+- Nothing in `<range>` qualifies for step 0 because the remaining in-range work waits on milestones that are blocked or outside `<range>`.
 - Any of the counted conditions (a) three consecutive phase failures, (b) the same milestone failing verification twice, (c) no state change across two iterations, or (d) the user steers you to stop, change features, or do other work.
 
 On stop, report: the feature, which milestones completed this run, the verdict, and each reason it is INCOMPLETE if it is. Name tasks left at `[x]` and say they need investigation rather than a plain `belmont reverify`. Name milestones the breaker bounded, with `/belmont:debug-manual <feature>` as their next step — its deferrals are open defects, not unrecorded verifications. And if any `[!]` exist, report them with `belmont blockers --feature <feature> --summary`: they are the work the user has to do before the feature can finish, and a count buried in a status dump is not a handover.
@@ -604,6 +688,7 @@ On stop, report: the feature, which milestones completed this run, the verdict, 
 ## Scope rules
 
 - **One feature only.** Never let an iteration pull in a different feature or unrelated refactor. The recipe's final line ("Do not start unrelated work") is load-bearing.
+- **When bounded, in-range only.** A run given `--from`/`--to` never implements, verifies, triages, settles, or re-marks anything outside `<range>` — including step 2's earlier-milestone rescan. The bounds exist because the excluded milestones are deliberately not this run's business.
 - **Do not edit milestone structure.** This skill orchestrates the existing implement/verify/next/status skills — it never adds, renames, or removes milestones. The canonical rule and the routing for discovered work are stated above; the triage step in particular must never turn a deferral into a milestone.
 - **Respect each underlying skill's rules.** `/belmont:implement`, `/belmont:verify`, and `/belmont:next` enforce their own scope guards, evidence checks, and feature-detection prompts. Do not bypass them; just sequence them.
 - **A human-gated `[!]` belongs to the user.** The loop may *write* one — that is what triage's human-gated class does — but it may never clear one, answer it on the user's behalf, or convert it to `[-]` to make a milestone read complete. `mergeProgressState` refuses to rank over `[!]` from either direction; this is the same rule at the skill layer. Two `[!]` writers are **not** human-gated and carry their own reopen condition — the milestone-structure rule's later-milestone dependency, and the reconciliation agent's merge blocker — and the recipe names both. Tell them apart by the reason on the task; that is what the reason is for. `belmont blockers` is how you show the rest.

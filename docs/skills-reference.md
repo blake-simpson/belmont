@@ -61,7 +61,7 @@ Codex-only compatibility skill for applying a `BELMONT_PLAN_PACKET` produced by 
 
 Implements the next pending milestone from the PRD.
 
-- Reads PROGRESS.md to find the first incomplete milestone
+- Reads PROGRESS.md to find the first incomplete milestone whose `(depends: …)`, if present, is met (#59) — a dependency-blocked milestone runs after what it names, never first
 - Creates a **MILESTONE file** (`.belmont/MILESTONE.md`) with orchestrator context
 - Runs 3 agents, each reading from and writing to the MILESTONE file:
   1. **Codebase Scan** (codebase-agent) -- Reads MILESTONE + codebase, writes `## Codebase Analysis` *(parallel with 2)*
@@ -77,7 +77,7 @@ Implements the next pending milestone from the PRD.
 
 Implements just the next single pending task — a lightweight alternative to the full implement pipeline.
 
-- Reads PROGRESS.md to find the first unchecked task in the first pending milestone
+- Reads PROGRESS.md to find the first unchecked task in the first pending milestone whose `(depends: …)`, if present, is met (#59)
 - Creates a **minimal MILESTONE file** with just the single task's context (skips analysis agents)
 - Dispatches the single task to the `implementation-agent` as a sub-agent — via the same dispatch strategy as `implement`/`verify` (tool-name check, announced approach, `models.yaml` implementation tier when present)
 - After the task is done: marks it as `[x]` done in PROGRESS.md
@@ -102,15 +102,15 @@ Runs verification and code review on all completed tasks.
 
 ## `loop`
 
-**Claude Code or Codex.** Drives a single feature to completion from inside the interactive REPL, advancing it milestone-by-milestone without you re-typing each skill. Usage: `/belmont:loop <feature-name>` in Claude Code, or `$belmont:loop <feature-name>` / `belmont:loop <feature-name>` in Codex.
+**Claude Code or Codex.** Drives a single feature — or a bounded milestone range of it — to completion from inside the interactive REPL, advancing it milestone-by-milestone without you re-typing each skill. Usage: `/belmont:loop <feature-name>` in Claude Code, or `$belmont:loop <feature-name>` / `belmont:loop <feature-name>` in Codex. Optional bounds mirror single-feature `belmont auto`: `/belmont:loop <feature-name> --from M21 --to M22` drives just that range and stops — every selection, stop condition, and the final verdict is scoped to it, and out-of-range state is read-only. This is how you drive the dispatchable milestones of a feature whose others are human-executed (issue #58).
 
 - Resolves `<feature-name>` to one feature slug (prompts if omitted or ambiguous), then runs a self-paced loop where each iteration:
-  0. **Pick the target milestone** — the first one holding a `[ ]`, `[>]` or `[x]` task, and name it explicitly downstream. Neither `belmont status` nor `/belmont:implement` will do this for you: both keep returning a milestone whose only live work is `[!]`, forever
+  0. **Pick the target milestone** — the first in-range one holding a `[ ]`, `[>]` or `[x]` task whose `(depends: …)` is met, and name it explicitly downstream. `belmont status` and `/belmont:implement` skip unmet dependencies too (#59), but neither knows the range, and both keep returning a milestone whose only live work is `[!]`, forever. Work the spec assigns to a *person* (an interactive run, a sign-off, a console action) is marked `[!]` here, before any agent is dispatched at it — an implementation agent pointed at "run the fixture" can only fail or fabricate
   1. `/belmont:implement <feature>` — build milestone `<M>`, milestone-scoped, with the milestone named explicitly
   2. `/belmont:verify <feature>` — always run, milestone-scoped; only verify writes `[v]`, so no milestone is ever skipped
   3. **Triage** — classify each follow-up as **human-gated**, blocking, or deferrable. Human-gated is checked first and outranks the others: it means the missing thing is a *person* (an approval, a product ruling, a credential, a console action), so the task is marked `[!]`, logged in `## Decisions Log`, and never fixed, deferred or swept. Deferrable ones are withdrawn as `[-]` with their detail moved to `NOTES.md` under `## Polish`. Circuit breaker: after two fix rounds, defer everything still classified blocking — human-gated tasks are never swept
   4. **Batch fix** — one `/belmont:next <feature>` in BATCH MODE covering every `[ ]` FWLUP in the milestone (`[!]` tasks are skipped), then a *focused* re-verify (fixed tasks + build/tests + previously-failing criteria only), then back to triage
-  5. `belmont status --feature <feature>` — stop if every milestone is verified, otherwise continue
+  5. `belmont status --feature <feature>` — stop if every in-range milestone is verified, otherwise continue
 - Stays scoped to the one named feature — never starts unrelated work, never edits milestone structure. Deferral routes to `[-]` plus `NOTES.md`, or a same-milestone `[!]`, never a new milestone and **never a deleted checkbox line** — a deletion does not survive `mergeProgressState` and records no reason.
 - **A blocked task does not stop the loop** — in this skill. `[!]` is usually a question queued for a person, so step 0 of the recipe selects past a milestone whose only live work is `[!]` to the next one holding a `[ ]`/`[>]`/`[x]`, and the loop stops only when every remaining pending task is `[!]`. Step 0 exists because nothing else does this: `belmont status` and `/belmont:implement` both keep naming the blocked milestone. The loop never clears, answers, or withdraws a human-gated `[!]` (the two `[!]`s with a checkable reopen condition — a later-milestone dependency, or a reconciliation-agent merge blocker — are exempt). On stop it reports the queue with `belmont blockers --feature <feature> --summary`.
   - **`belmont auto` does the opposite, on purpose.** It PAUSEs the whole feature on the first `[!]` (`decideLoopAction` Rule 1). Headless, nobody is watching, so the question has to reach a person before anything else runs. Do not read this bullet as describing `belmont auto`, despite the alias.
@@ -118,7 +118,7 @@ Runs verification and code review on all completed tasks.
 - **Bounding a milestone is not ending the run.** A remaining `[x]`, a fired circuit breaker and a `[!]` each bound the milestone they occur in and each make the final verdict INCOMPLETE — none of them halts the loop. Stopping the whole feature because one milestone hit its bound strands every milestone that had nothing to do with it.
 - Stop conditions are counted, not judged: three consecutive phase failures, the same milestone failing verification twice (escalates to `/belmont:debug-manual`), or no state change across two iterations. Counts are written to `NOTES.md` under `## Loop decisions`, not held in context, so they survive compaction. Every stop condition — including the user-steering one — lives inside the fenced recipe handed to `/loop`, which is the only text guaranteed to survive compaction; the skill's prose section restates them for a reader.
 - Preflight routes rather than guesses: a feature that is entirely `[x]` with no pending milestone goes to `belmont reverify --feature <feature>`, not into the loop — iteration step 1 would have nothing to implement.
-- **Every milestone verified is the only success case.** A task left at `[x]` means verification found issues, errored, or lost its flips — all failures — so the run reports INCOMPLETE and names them. The loop never reports a feature complete over unverified work.
+- **Every in-range milestone verified is the only success case.** A task left at `[x]` means verification found issues, errored, or lost its flips — all failures — so the run reports INCOMPLETE and names them. The loop never reports a feature complete over unverified work, and a bounded run's COMPLETE describes the range, not the feature — the report names what the bounds excluded.
 - The interactive counterpart to the headless `belmont auto` CLI (also aliased `belmont loop`). Use `/belmont:loop` to stay in the REPL and watch/steer; use `belmont auto` for fully headless, parallel, worktree-based execution. **Auto is the faster path** — parallel worktrees and a fresh context per phase. Loop's advantage is that you are present to steer, so it optimises for not wasting your session rather than for parallelism.
 - Delegates to the host tool's long-running primitive: Claude Code's built-in `/loop`, or Codex Goal mode via `/goal`. Other shared-surface CLIs do not have matching interactive loop mechanics, so Belmont keeps `loop` hidden unless Claude Code or Codex is selected for the install.
 - The interactive counterpart to the headless `belmont auto` CLI (also aliased `belmont loop`). Use `/belmont:loop` or `$belmont:loop` to stay in the REPL and watch/steer; use `belmont auto` for fully headless, parallel, worktree-based execution.
