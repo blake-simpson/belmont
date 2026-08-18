@@ -1,6 +1,6 @@
 ### Model Tier Preflight (non-Claude CLIs)
 
-Non-Claude CLIs (Codex, Gemini, Cursor, Copilot, Pi, opencode) run the entire skill in a single top-level session at whichever model the session was started with — there's no sub-agent dispatch to override mid-session. Before doing any heavy work, compare the **required tier** for the current skill to the **session's current model** and surface a warning if they diverge. Do NOT block execution; let the user decide.
+Non-Claude CLIs (Codex, Gemini, Cursor, Copilot, Pi, opencode) run the skill at whichever model the session was started with — none of them exposes a per-dispatch model override. (opencode can dispatch sub-agents, but its `task` tool carries no model parameter; the rest run everything in one top-level session.) Before doing any heavy work, compare the **required tier** for the current skill to the **session's current model** and surface a warning if they diverge. Do NOT block execution; let the user decide.
 
 **Workflow at start-of-skill (non-Claude only)**:
 

@@ -179,7 +179,7 @@ Belmont's orchestrator skills (`implement`, `verify`, `debug-auto`, `debug-manua
 
 Each skill checks its available tools **by name** and takes the first approach that works, then says which one it took:
 
-- **Approach A — parallel sub-agent dispatch.** Needs the dispatch tool: `Agent` on current Claude Code, or `Task` under its older name on earlier versions. Parallel phases are issued in one message and return their results directly.
+- **Approach A — parallel sub-agent dispatch.** Needs the dispatch tool: `Agent` on current Claude Code, `Task` under its older name on earlier versions, or opencode's `task` — whose general-purpose sub-agent is named `general`, not Claude's `general-purpose`; the skills carry both names. Parallel phases are issued in one message and return their results directly. (Model-tier overrides stay Claude-only: opencode's `task` takes no model parameter.)
 - **Approach B — sequential inline execution.** For CLIs with no sub-agent dispatch at all. Each agent's instructions run inline, one finished completely before the next starts. Context isolation is lost and `models.yaml` tiers cannot be applied, since there is no dispatch call to carry the model override — the skill states this when it falls back.
 
 Nothing to configure either way.
