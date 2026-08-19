@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.11.1
+
+**Released:** 2026-08-19
+
+### Changes since v0.11.0
+
+- Two residuals from the convergence round
+- Close what the verification round left open
+- Seven defects the adversarial round found in this PR, fixed
+- Docs and knowledge for the dependency-eligibility change (#58, #59)
+- Give /belmont:next the dispatch strategy it was already claiming to follow (#54)
+- Name the sub-agent type per-CLI: opencode dispatches, as `general` (#56)
+- Bound /belmont:loop, and teach the prose selectors what (depends:) means (#58, #59)
+- Never offer a milestone whose (depends:) is unmet (#59)
+- Report reverify milestones as processed, not verified (#61)
+- Repair strands evidence too, and four tests that certify nothing
+- A checkbox is not a task, and %q is not JSON
+- Six tests that could not fail, including the one written to stop that
+- Three the anchor fix got wrong, and the claims that covered for them
+- Two the red team found in what the review round just added
+- Give the milestone anchor one definition, called by both merge paths
+- The three non-blocking ones, and the seven flags the first of them exposed
+- Three from review: two that weakened "never silently dropped", one test that could not fail
+- Give the fourth merge-path difference a destination
+- Four claims in this branch that its own code contradicts
+- Cite a commit that outlives the rebase, not one only my branch could see
+- Prove the wave on a real repository, not on two directories
+- Stop the listing calling a worktree preserved and then denying it
+- "The last placement disagreement" was two words too strong
+- Stop the comment repeating the claim its own commit message corrects
+- Make the one-worktree case read as English, and pin it
+- Drop a count I could not substantiate from a comment
+- Record what these five fixes changed, in the entries that claimed otherwise
+- Treat `--help` as the success it is, and stop hiding auto's real modes
+- Say what could not be read, instead of rendering it as 0/0
+- Stop `recover` offering to delete the wave that is still running
+- Carry the task's body, and put a nested one back under its parent
+- Reset the milestone being verified, not the six behind it
+- Say why agent teams stays out, not just that its tools vanished
+- Re-measure the prose the red team rewrote, not the prose it reviewed
+- Stop the cross-run check pinning a judgement call
+- Six things the authorization commit got wrong, found by red-teaming it
+- Say that running the skill is the request to dispatch
+- Say "no teardown", not "no cleanup" — the skills still have a Step 6
+- Two the nested-carry fix broke, and three claims that were not true
+- Check for the dispatch tool by the name it actually has
+- Say which milestone came from master, instead of quietly substituting it
+- Carry the nested task too, and put it back under its parent
+- Let a blocker win from either side, and say what it displaced
+
+
+
 ## v0.11.0
 
 **Released:** 2026-08-14
